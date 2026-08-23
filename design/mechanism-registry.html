@@ -1,0 +1,514 @@
+<title>The Arsenal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@700;900&family=Zilla+Slab:ital,wght@0,400;0,500;0,600;1,400&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap">
+
+<style>
+:root{
+  --paper:#ECEDEF;
+  --surface:#F8F8FA;
+  --surface-2:#DFE0E4;
+  --ink:#191A1D;
+  --ink-2:#41444B;
+  --ink-3:#71757F;
+  --rule:#D2D4D9;
+  --rule-2:#B3B6BD;
+  --accent:#8E2436;
+  --accent-bg:#EFDCDF;
+  --ok:#1F5F45;
+  --ok-bg:#DBEAE2;
+  --mid:#7A5A0E;
+  --mid-bg:#EEE6CE;
+  --code:#E3E4E8;
+  --shadow:0 1px 2px rgba(25,26,29,.05),0 12px 30px -24px rgba(25,26,29,.6);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E0F12;
+    --surface:#16181C;
+    --surface-2:#1E2126;
+    --ink:#E7E8EC;
+    --ink-2:#B6B9C1;
+    --ink-3:#858A94;
+    --rule:#282B31;
+    --rule-2:#3C4048;
+    --accent:#E0899A;
+    --accent-bg:#2E171C;
+    --ok:#5CBE97;
+    --ok-bg:#122A22;
+    --mid:#DDB25A;
+    --mid-bg:#2C2410;
+    --code:#1A1D22;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 14px 34px -26px #000;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E0F12;--surface:#16181C;--surface-2:#1E2126;
+  --ink:#E7E8EC;--ink-2:#B6B9C1;--ink-3:#858A94;
+  --rule:#282B31;--rule-2:#3C4048;
+  --accent:#E0899A;--accent-bg:#2E171C;
+  --ok:#5CBE97;--ok-bg:#122A22;--mid:#DDB25A;--mid-bg:#2C2410;
+  --code:#1A1D22;--shadow:0 1px 2px rgba(0,0,0,.5),0 14px 34px -26px #000;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Zilla Slab",Georgia,serif;font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 40%,transparent)}
+a:hover{border-bottom-color:var(--accent)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px 110px}
+
+.mast{padding:58px 0 26px;border-bottom:3px solid var(--ink)}
+.kicker{
+  font-family:"DM Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--accent);margin:0 0 18px;
+}
+h1{
+  font-family:Chivo,"Helvetica Neue",sans-serif;font-weight:900;
+  font-size:clamp(2.6rem,8vw,5rem);line-height:.92;letter-spacing:-.035em;
+  margin:0 0 18px;text-transform:uppercase;
+}
+.dek{font-size:clamp(1rem,1.9vw,1.14rem);color:var(--ink-2);max-width:66ch;margin:0}
+.counts{
+  display:flex;flex-wrap:wrap;gap:0;margin:26px 0 0;
+  border-top:1px solid var(--rule);padding-top:16px;
+}
+.cnt{flex:1 1 130px;padding-right:20px}
+.cnt b{
+  font-family:Chivo,sans-serif;font-weight:900;font-size:2.1rem;display:block;
+  line-height:1;margin-bottom:4px;font-variant-numeric:tabular-nums;
+}
+.cnt span{font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);line-height:1.4;display:block}
+
+h2{
+  font-family:Chivo,"Helvetica Neue",sans-serif;font-weight:900;
+  font-size:clamp(1.4rem,3vw,1.95rem);letter-spacing:-.022em;line-height:1.06;
+  margin:0 0 8px;text-transform:uppercase;
+}
+h3{font-family:Chivo,sans-serif;font-weight:700;font-size:1.08rem;letter-spacing:-.01em;margin:0 0 6px}
+h4{font-family:"DM Mono",monospace;font-size:10.5px;letter-spacing:.17em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500;margin:22px 0 9px}
+.sec{padding:50px 0 0}
+.sec-tag{font-family:"DM Mono",monospace;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 11px;display:block}
+p{margin:0 0 14px;max-width:72ch}
+ul{margin:0 0 15px;padding-left:19px}
+li{margin:0 0 8px;max-width:70ch}
+li::marker{color:var(--accent)}
+strong{font-weight:600}
+
+/* surface key */
+.keygrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;
+  background:var(--rule);border:1px solid var(--rule);border-radius:2px;margin:0 0 22px;overflow:hidden}
+.keycell{background:var(--surface);padding:13px 15px}
+.keycell .sc{font-family:"DM Mono",monospace;font-weight:500;font-size:16px;color:var(--accent);display:block;margin-bottom:3px}
+.keycell .kn{font-family:Chivo,sans-serif;font-weight:700;font-size:13.5px;display:block;margin-bottom:3px}
+.keycell .kd{font-size:12.5px;color:var(--ink-3);line-height:1.4;display:block}
+
+/* family tables */
+.fam{margin:0 0 30px}
+.famhead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+  border-bottom:2px solid var(--ink);padding-bottom:7px;margin:34px 0 0}
+.famhead .fid{font-family:"DM Mono",monospace;font-size:12px;font-weight:500;color:var(--accent);letter-spacing:.1em}
+.famhead h3{margin:0;font-size:1.14rem}
+.famhead .fn{font-family:"DM Mono",monospace;font-size:11px;color:var(--ink-3);margin-left:auto;letter-spacing:.09em}
+.tw{overflow-x:auto;border:1px solid var(--rule);border-top:0;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:700px}
+th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{font-family:"DM Mono",monospace;font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500;background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+td.m{font-family:"DM Mono",monospace;font-size:12.5px;white-space:nowrap;color:var(--ink-3)}
+td.nm{font-weight:600;width:26%}
+.sf{font-family:"DM Mono",monospace;font-weight:500;font-size:12px;color:var(--accent);letter-spacing:.06em;white-space:nowrap}
+.t{display:inline-block;font-family:"DM Mono",monospace;font-size:9.5px;letter-spacing:.1em;
+  text-transform:uppercase;padding:2px 7px;border-radius:2px;white-space:nowrap}
+.t.t1{background:var(--ok-bg);color:var(--ok)}
+.t.t2{background:var(--mid-bg);color:var(--mid)}
+.t.t3{background:var(--surface-2);color:var(--ink-3)}
+
+/* code / tree */
+pre{font-family:"DM Mono",ui-monospace,monospace;font-size:12.5px;line-height:1.62;
+  background:var(--code);border-radius:2px;padding:15px 17px;margin:0 0 16px;
+  overflow-x:auto;color:var(--ink)}
+pre .c{color:var(--ink-3)}
+pre .a{color:var(--accent)}
+code{font-family:"DM Mono",monospace;font-size:.88em;background:var(--code);padding:1.5px 5px;border-radius:2px}
+.repo{font-family:"DM Mono",monospace;font-size:12.5px;color:var(--accent)}
+
+.note{border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent-bg) 50%,transparent);
+  padding:13px 17px;margin:0 0 18px;border-radius:0 2px 2px 0;font-size:15px}
+.note b{color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--accent);
+  border-radius:2px;padding:20px 24px;margin:0 0 20px;box-shadow:var(--shadow)}
+.card h3{margin-bottom:7px}
+.card p:last-child{margin-bottom:0}
+
+footer{border-top:1px solid var(--rule);margin-top:54px;padding-top:24px;
+  font-family:"DM Mono",monospace;font-size:11.5px;color:var(--ink-3);line-height:1.7}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="kicker">Mechanism registry · continual learning architecture</p>
+  <h1>The Arsenal</h1>
+  <p class="dek">Every continual-learning mechanism from your thirteen families plus every named method inside the thirteen papers, consolidated into one registry. Each entry tagged by the surface it plugs into and the order it's worth building — so the sweep is a config change, not a rewrite.</p>
+  <div class="counts">
+    <div class="cnt"><b>16</b><span>families</span></div>
+    <div class="cnt"><b>~95</b><span>distinct methods</span></div>
+    <div class="cnt"><b>6</b><span>integration surfaces</span></div>
+    <div class="cnt"><b>15</b><span>tier-1 build first</span></div>
+  </div>
+</header>
+
+<section class="sec">
+  <span class="sec-tag">The plug-in contract</span>
+  <h2>Six surfaces</h2>
+  <p>The reason some mechanisms "can't be injected into the model arch" is that they don't touch the model at all — they operate on the loss, the optimizer, the data stream, or a finished checkpoint. Classifying by surface first is what makes a uniform module library possible: every one of the ~95 methods below fits one or more of these six hooks.</p>
+
+  <div class="keygrid">
+    <div class="keycell"><span class="sc">A</span><span class="kn">Architecture</span><span class="kd">Changes the model graph. Needs the forked model code.</span></div>
+    <div class="keycell"><span class="sc">L</span><span class="kn">Loss</span><span class="kd">Adds a term to the objective. Wraps the training step.</span></div>
+    <div class="keycell"><span class="sc">O</span><span class="kn">Optimizer</span><span class="kd">Modifies gradients or the update rule.</span></div>
+    <div class="keycell"><span class="sc">S</span><span class="kn">State</span><span class="kd">External buffer or datastore. Never touches weights.</span></div>
+    <div class="keycell"><span class="sc">D</span><span class="kn">Data</span><span class="kd">Changes what batches contain or when. Wraps the loader.</span></div>
+    <div class="keycell"><span class="sc">P</span><span class="kn">Post-hoc</span><span class="kd">Operates on finished checkpoints. No training loop.</span></div>
+  </div>
+
+  <h4>The hook interface every module implements</h4>
+<pre><span class="a">class</span> Mechanism:
+    surfaces = ()          <span class="c"># e.g. ("L","S") — declares what it touches</span>
+
+    def on_model_build(self, model, cfg):      <span class="c"># A — surgery: swap/insert layers</span>
+    def on_batch(self, batch, step):           <span class="c"># D — mix replay, reformat targets</span>
+    def compute_loss(self, model, batch, out, base_loss):   <span class="c"># L — add terms</span>
+    def before_step(self, model):              <span class="c"># O — project/mask/damp gradients</span>
+    def after_step(self, model):               <span class="c"># O — reinit units, shrink+perturb</span>
+    def on_task_boundary(self, model, task_id):<span class="c"># Fisher, SVD bases, buffer resize</span>
+    def on_eval(self, model, task_id):         <span class="c"># probes and metrics</span></pre>
+  <p>A run is then a list of mechanism names in a config. Composition is just running the hooks in order, which is exactly what you need for a sweep — and it also surfaces conflicts early, because two mechanisms writing the same hook is a signal to check the interaction rather than hope.</p>
+
+  <div class="note"><b>Build tiers.</b> <span class="t t1">T1</span> build first — strong evidence, needed as a baseline for everything else. <span class="t t2">T2</span> build for the comparison sweep. <span class="t t3">T3</span> reference only — implement if a T1/T2 result points at it. Implementing all ~95 up front is not realistic; the tiering is how you get a broad sweep without a year of plumbing.</div>
+</section>
+
+<section class="sec">
+  <span class="sec-tag">Registry</span>
+  <h2>All sixteen families</h2>
+  <p>Source column: bare arXiv IDs are the papers in <code>All PDF/</code>. "survey" means it appears in the taxonomy of 2302.00487 without a dedicated paper here. "external" means neither — you'd pull it in.</p>
+
+  <!-- F1 -->
+  <div class="famhead"><span class="fid">F01</span><h3>Replay &amp; rehearsal</h3><span class="fn">20 methods · your mechanism 1</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">ER</td><td>Reservoir buffer of raw samples, interleaved into batches</td><td class="m">2004.07211</td><td class="sf">S·D</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">DER</td><td>Store logits, regress current outputs onto them (MSE)</td><td class="m">2004.07211</td><td class="sf">S·L</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">DER++</td><td>DER plus ground-truth CE on buffer points</td><td class="m">2004.07211</td><td class="sf">S·L</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">iCaRL</td><td>Exemplar sets + nearest-mean-of-exemplars head + distillation</td><td class="m">1611.07725</td><td class="sf">S·A·L</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">Herding selection</td><td>Greedy prefix-mean exemplar ordering; truncation-safe</td><td class="m">1611.07725</td><td class="sf">S</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">LwF</td><td>Data-free pseudo-replay: distill old outputs on new inputs</td><td class="m">1606.09282</td><td class="sf">L</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">DGR</td><td>Generative replay, hard targets from the old model</td><td class="m">1904.07734</td><td class="sf">S·D</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">DGR+distill</td><td>Generative replay with soft targets</td><td class="m">1904.07734</td><td class="sf">S·L</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">FDR</td><td>Function-distance regularization from boundary snapshots</td><td class="m">2004.07211</td><td class="sf">S·L</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">GEM</td><td>Per-task inequality constraints on gradient inner products</td><td class="m">survey</td><td class="sf">O·S</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">A-GEM</td><td>Single averaged constraint; cheaper GEM</td><td class="m">survey</td><td class="sf">O·S</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">MER</td><td>Meta-learned gradient alignment over replay</td><td class="m">survey</td><td class="sf">O·S</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">GSS</td><td>Buffer selection maximizing gradient diversity</td><td class="m">survey</td><td class="sf">S</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">HAL</td><td>Anchor points whose predictions are stabilized</td><td class="m">survey</td><td class="sf">L·S</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">Reservoir sampling</td><td>Boundary-free buffer population, uniform over stream</td><td class="m">2004.07211</td><td class="sf">S</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">Ring buffer</td><td>Equal count per class</td><td class="m">survey</td><td class="sf">S</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">Mean-of-feature</td><td>Keep samples nearest each class feature mean</td><td class="m">survey</td><td class="sf">S</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">MIR</td><td>Retrieve the samples suffering most interference</td><td class="m">survey</td><td class="sf">S</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">Latent / feature replay</td><td>Store activations not inputs; ~50× cheaper</td><td class="m">survey</td><td class="sf">S·A</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">AQM · MRDC</td><td>Compressed replay (VQ-VAE / rate-optimized)</td><td class="m">survey</td><td class="sf">S</td><td><span class="t t3">T3</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F2 -->
+  <div class="famhead"><span class="fid">F02</span><h3>Weight &amp; function regularization</h3><span class="fn">7 methods · implicit in your list</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">EWC</td><td>Quadratic penalty weighted by diagonal Fisher, per task</td><td class="m">1904.07734</td><td class="sf">L</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">Online EWC</td><td>Single penalty, decayed running Fisher (γ)</td><td class="m">1904.07734</td><td class="sf">L</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">SI</td><td>Path-integral importance, computed during training</td><td class="m">1904.07734</td><td class="sf">L·O</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">MAS</td><td>Importance from output sensitivity; unsupervised</td><td class="m">survey</td><td class="sf">L</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">RWalk</td><td>SI + EWC combined</td><td class="m">survey</td><td class="sf">L</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">VCL</td><td>Variational posterior-as-prior; KL between task posteriors</td><td class="m">survey</td><td class="sf">L·A</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">Function distillation</td><td>Temperature-softened output matching (LwF core)</td><td class="m">1606.09282</td><td class="sf">L</td><td><span class="t t1">T1</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F3 -->
+  <div class="famhead"><span class="fid">F03</span><h3>Optimization geometry</h3><span class="fn">9 methods · your mechanism 2</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">GPM</td><td>SVD of activations → project gradients orthogonal to core space</td><td class="m">2103.09762</td><td class="sf">O</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">OGD</td><td>Store old gradient directions, orthogonalize against them</td><td class="m">survey</td><td class="sf">O·S</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">OWM</td><td>Recursive-least-squares projector onto input null space</td><td class="m">survey</td><td class="sf">O</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">Adam-NSCL</td><td>Project into null space of uncentered feature covariance</td><td class="m">survey</td><td class="sf">O</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">TRGP</td><td>Trust region via projection norm; selective weight reuse</td><td class="m">survey</td><td class="sf">O</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">O-LoRA / Orthog-Subspace</td><td>Mutually orthogonal low-rank subspace per task</td><td class="m">survey·2310.06762</td><td class="sf">A·O</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">FS-DGPM</td><td>Dynamically release unimportant GPM bases to restore plasticity</td><td class="m">survey</td><td class="sf">O</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">NCL</td><td>Bayesian precision preconditioner + proximity to old solution</td><td class="m">survey</td><td class="sf">O</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">Flat-minima seeking</td><td>SAM-style sharpness penalty; Fisher-trace as objective</td><td class="m">2004.07211·survey</td><td class="sf">O·L</td><td><span class="t t2">T2</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F4 -->
+  <div class="famhead"><span class="fid">F04</span><h3>Sparsity &amp; update localization</h3><span class="fn">10 methods · your mechanism 3</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">Memory layers</td><td>Product-key sparse K/V pool replacing an FFN</td><td class="m">2510.15103</td><td class="sf">A</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">Sparse memory finetuning</td><td>TF-IDF slot ranking vs background corpus; train top-t only</td><td class="m">2510.15103</td><td class="sf">A·O</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">Neuron specificity masking</td><td>Same ranking applied to existing FFN neurons — no arch change</td><td class="m">2510.15103</td><td class="sf">O</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">k-WTA + boosting</td><td>Top-k activations, duty-cycle boosting for uniform usage</td><td class="m">1903.11257</td><td class="sf">A</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">Sparse weight init</td><td>Fixed zero mask held for the network's life</td><td class="m">1903.11257</td><td class="sf">A</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">Sparse MoE</td><td>Top-k expert routing, aux + z loss</td><td class="m">survey·2512.24695</td><td class="sf">A</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">PackNet</td><td>Iterative pruning → frozen per-task masks</td><td class="m">survey</td><td class="sf">A·O</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">HAT</td><td>Learned attention masks gating gradient flow</td><td class="m">survey</td><td class="sf">A</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">SupSup · WSN · Piggyback</td><td>Binary supermasks selecting a subnetwork per task</td><td class="m">survey</td><td class="sf">A</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">XdG</td><td>Random context-dependent gating of hidden units</td><td class="m">1904.07734</td><td class="sf">A</td><td><span class="t t2">T2</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F5 -->
+  <div class="famhead"><span class="fid">F05</span><h3>Frozen backbone: prompts &amp; adapters</h3><span class="fn">6 methods · your mechanism 4</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">L2P</td><td>Prompt pool + instance-wise key-query selection, frozen backbone</td><td class="m">2112.08654</td><td class="sf">A</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">DualPrompt · CODA-Prompt</td><td>G/E-prompt split; attention-weighted prompt composition</td><td class="m">external</td><td class="sf">A</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">S-Prompts</td><td>Per-domain prompts with a KNN domain identifier</td><td class="m">external</td><td class="sf">A·S</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">Prompt / prefix tuning</td><td>Learn continuous prompt vectors; no selection</td><td class="m">2112.08654</td><td class="sf">A</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">LoRA</td><td>Low-rank adapters; the standard forgetting baseline</td><td class="m">2510.15103</td><td class="sf">A</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">Side-Tuning · TwF</td><td>Parallel network fused with the frozen backbone</td><td class="m">survey</td><td class="sf">A</td><td><span class="t t3">T3</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F6 -->
+  <div class="famhead"><span class="fid">F06</span><h3>Hypernetworks</h3><span class="fn">4 methods · your mechanism 5</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">Task-conditioned hypernet</td><td>Embedding → target weights; regularize hypernet outputs</td><td class="m">1906.00695</td><td class="sf">A·L</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">Chunked hypernet</td><td>Reusable hypernet + chunk embeddings; compressive regime</td><td class="m">1906.00695</td><td class="sf">A</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">HNET+ENT</td><td>Infer task by lowest predictive entropy</td><td class="m">1906.00695</td><td class="sf">A</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">HNET+TIR · HNET+R</td><td>Hypernet-protected replay model / task classifier</td><td class="m">1906.00695</td><td class="sf">A·S</td><td><span class="t t3">T3</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F7 -->
+  <div class="famhead"><span class="fid">F07</span><h3>Meta-learned update rules</h3><span class="fn">4 methods · your mechanism 6</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">OML · ANML</td><td>Meta-learn representations that resist interference</td><td class="m">external</td><td class="sf">A·O</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">MER</td><td>Meta-learn the update to align gradients across tasks</td><td class="m">survey</td><td class="sf">O·S</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">La-MAML</td><td>Per-parameter learning rates meta-learned online</td><td class="m">external</td><td class="sf">O</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">Nested learned optimizers</td><td>Optimizer states as associative memories at their own level</td><td class="m">2512.24695</td><td class="sf">O</td><td><span class="t t3">T3</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F8 -->
+  <div class="famhead"><span class="fid">F08</span><h3>Model merging &amp; task arithmetic</h3><span class="fn">5 methods · your mechanism 7</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">Task vectors</td><td>θ_ft − θ_base as an addable/subtractable direction</td><td class="m">external</td><td class="sf">P</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">TIES-merging</td><td>Trim, elect sign, disjoint merge — resolves delta conflicts</td><td class="m">external</td><td class="sf">P</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">DARE</td><td>Randomly drop and rescale deltas before merging</td><td class="m">external</td><td class="sf">P</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">Fisher-weighted averaging</td><td>Merge weighted by per-parameter Fisher</td><td class="m">external</td><td class="sf">P</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">Linear mode connectivity</td><td>Probe: is there a low-loss path between task solutions?</td><td class="m">external</td><td class="sf">P</td><td><span class="t t3">T3</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F9 -->
+  <div class="famhead"><span class="fid">F09</span><h3>Non-parametric memory</h3><span class="fn">4 methods · your mechanism 8</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">RAG</td><td>Retrieve documents into context; zero weight movement</td><td class="m">external</td><td class="sf">S·D</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">kNN-LM</td><td>Interpolate model distribution with a datastore lookup</td><td class="m">external</td><td class="sf">S·A</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">HippoRAG-style graph memory</td><td>Graph-structured store with associative traversal</td><td class="m">external</td><td class="sf">S</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">Nearest-mean-of-exemplars head</td><td>Prototype classifier that moves with the representation</td><td class="m">1611.07725</td><td class="sf">A·S</td><td><span class="t t2">T2</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F10 -->
+  <div class="famhead"><span class="fid">F10</span><h3>Fast weights &amp; test-time learning</h3><span class="fn">7 methods · your mechanism 9</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">Persistent linear-attn state</td><td>Carry the recurrent state across documents instead of resetting</td><td class="m">2512.24695</td><td class="sf">A</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">CMS</td><td>Chain of MLPs updating at different chunk frequencies</td><td class="m">2512.24695</td><td class="sf">A·O</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">Titans</td><td>Surprise-gated neural long-term memory, written at test time</td><td class="m">2512.24695</td><td class="sf">A</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">Self-referential Titans</td><td>All projections become memories generating their own values</td><td class="m">2512.24695</td><td class="sf">A</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">Hope</td><td>Self-modifying Titans + CMS, end to end</td><td class="m">2512.24695</td><td class="sf">A</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">Delta Gradient Descent</td><td>State-dependent update: M(α_tI − η_tk_tk_tᵀ) − η_t∇L</td><td class="m">2512.24695</td><td class="sf">O</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">M3 · Deep-momentum GD</td><td>Multi-timescale momentum in the optimizer itself</td><td class="m">2512.24695</td><td class="sf">O</td><td><span class="t t3">T3</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F11 -->
+  <div class="famhead"><span class="fid">F11</span><h3>Knowledge editing</h3><span class="fn">3 methods · your mechanism 10</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">ROME</td><td>Locate a factual association, rank-one update to one MLP</td><td class="m">external</td><td class="sf">P</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">MEMIT</td><td>Mass edit across several layers at once</td><td class="m">external</td><td class="sf">P</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">WISE</td><td>Side memory + routing for thousands of sequential edits</td><td class="m">external</td><td class="sf">P·A</td><td><span class="t t3">T3</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F12 -->
+  <div class="famhead"><span class="fid">F12</span><h3>Plasticity maintenance</h3><span class="fn">5 methods · your mechanism 11</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">Continual backprop</td><td>Selective reinit of lowest-utility units, every step</td><td class="m">2306.13812</td><td class="sf">O</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">Shrink-and-perturb</td><td>Scale weights down, add noise — one-line approximation</td><td class="m">2306.13812</td><td class="sf">O</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">L2 as plasticity tool</td><td>Bounds weight growth; insufficient alone</td><td class="m">2306.13812</td><td class="sf">O·L</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">ReDo</td><td>Recycle dormant neurons on a dormancy criterion</td><td class="m">external</td><td class="sf">O</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">Regenerative regularization</td><td>Pull weights toward their initialization distribution</td><td class="m">external</td><td class="sf">L</td><td><span class="t t2">T2</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F13 -->
+  <div class="famhead"><span class="fid">F13</span><h3>Bio-inspired</h3><span class="fn">6 methods · your mechanism 12</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">CLS two-system</td><td>Fast hippocampal store + slow cortical net + consolidation</td><td class="m">survey·2112.08654</td><td class="sf">A·D</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">Sleep replay consolidation</td><td>Offline pass moving fast-store content into slow weights</td><td class="m">external</td><td class="sf">D·O</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">Multi-timescale consolidation</td><td>Online (synaptic) + offline (systems) at different rates</td><td class="m">2512.24695</td><td class="sf">O·D</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">Sparse distributed reps</td><td>High-dim sparse codes; collision decays exponentially in n</td><td class="m">1903.11257</td><td class="sf">A</td><td><span class="t t2">T2</span></td></tr>
+      <tr><td class="nm">Active dendrites</td><td>Context-modulated dendritic segments gating a neuron</td><td class="m">external</td><td class="sf">A</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">Synaptic metaplasticity</td><td>Shadow-weight magnitude as consolidation; binarized nets only</td><td class="m">external</td><td class="sf">O</td><td><span class="t t3">T3</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F14 -->
+  <div class="famhead"><span class="fid">F14</span><h3>Architecture isolation &amp; expansion</h3><span class="fn">3 methods · survey top-level, not in your 13</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">PNN</td><td>New column per task with lateral connections; linear growth</td><td class="m">survey·2004.07211</td><td class="sf">A</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">DEN · RCL · CPG · APD</td><td>Grow capacity only when the current network can't fit a task</td><td class="m">survey</td><td class="sf">A</td><td><span class="t t3">T3</span></td></tr>
+      <tr><td class="nm">Modular / decomposed nets</td><td>Task-shared + task-specific factorization of each weight</td><td class="m">survey</td><td class="sf">A</td><td><span class="t t3">T3</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F15 -->
+  <div class="famhead"><span class="fid">F15</span><h3>Pragmatic continual pretraining</h3><span class="fn">4 methods · your mechanism 13</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Method</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">LR re-warming</td><td>Warm up again at each stream segment instead of decaying to zero</td><td class="m">external</td><td class="sf">D·O</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">Replay data mix</td><td>~10% historical + alignment data; best OP with positive BWT</td><td class="m">2310.06762</td><td class="sf">D</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">Full-FT vs PEFT policy</td><td>Full FT fits the stream better; LoRA forgets differently, not less</td><td class="m">2310.06762</td><td class="sf">D</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">RCL</td><td>Rewrite targets as rationale→answer; 500 samples ≈ 5000 plain</td><td class="m">2310.06762</td><td class="sf">D</td><td><span class="t t2">T2</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <!-- F16 -->
+  <div class="famhead"><span class="fid">F16</span><h3>Measurement</h3><span class="fn">5 modules · required infrastructure</span></div>
+  <div class="tw"><table>
+    <thead><tr><th>Module</th><th>What it does</th><th>Source</th><th>Surface</th><th>Tier</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">Scenario harness</td><td>Task-IL / Domain-IL / Class-IL — same stream, three evaluations</td><td class="m">1904.07734</td><td class="sf">eval</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">Core CL metrics</td><td>AA, AIA, FM, BWT, IM, FWT</td><td class="m">2302.00487</td><td class="sf">eval</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">LLM capability deltas</td><td>OP, General Ability Δ, Instruction-Following Δ, Safety Δ</td><td class="m">2310.06762</td><td class="sf">eval</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">Plasticity probes</td><td>Dead-unit fraction, effective rank, mean weight magnitude</td><td class="m">2306.13812</td><td class="sf">eval</td><td><span class="t t1">T1</span></td></tr>
+      <tr><td class="nm">Flatness probes</td><td>Fisher trace, loss sensitivity to Gaussian weight noise</td><td class="m">2004.07211</td><td class="sf">eval</td><td><span class="t t1">T1</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="note" style="margin-top:26px"><b>On "test all of them."</b> Many of these are mutually exclusive by construction, not merely redundant — you cannot run a frozen backbone (F05) and plasticity maintenance (F12) in the same run, because one forbids weight movement and the other mandates it. A few are known to <em>compound</em>: replay + distillation, sparsity + plasticity maintenance, memory layer + consolidation policy. Design the sweep as a small set of coherent stacks rather than a full cross-product, and record which combinations were excluded and why — that record is itself a finding.</div>
+</section>
+
+<section class="sec">
+  <span class="sec-tag">Layout</span>
+  <h2>Where the code goes</h2>
+  <p>Organized by surface, because surface determines the plug-in contract. The model repo stays separate and clean; <code>cl_arsenal</code> is imported into it, never the reverse.</p>
+<pre>Continual learning architecture/
+├── All PDF/                     <span class="c">the 13 papers</span>
+├── design/                      <span class="c">these planning docs</span>
+├── <span class="a">cl_arsenal/</span>                  <span class="c">← the mechanism library</span>
+│   ├── base.py                  <span class="c">Mechanism ABC, the 7 hooks</span>
+│   ├── registry.py              <span class="c">name → class; sweeps are config</span>
+│   ├── compose.py               <span class="c">runs hooks in order, detects conflicts</span>
+│   ├── architecture/            <span class="c">A — needs the forked model</span>
+│   │   ├── memory_layer.py  kwta.py  moe.py  prompt_pool.py
+│   │   └── hypernet.py  fast_weights.py  cms.py  xdg.py
+│   ├── losses/                  <span class="c">L</span>
+│   │   └── ewc.py  si.py  mas.py  lwf.py  der.py  vcl.py
+│   ├── optim/                   <span class="c">O</span>
+│   │   ├── gpm.py  ogd.py  agem.py  olora.py  nscl.py
+│   │   └── continual_backprop.py  shrink_perturb.py  redo.py
+│   ├── memory/                  <span class="c">S</span>
+│   │   └── reservoir.py  herding.py  gss.py  generative.py  knn_store.py
+│   ├── stream/                  <span class="c">D</span>
+│   │   └── replay_mix.py  lr_rewarm.py  rcl_targets.py  consolidate.py
+│   ├── posthoc/                 <span class="c">P</span>
+│   │   └── task_vectors.py  ties.py  dare.py  fisher_avg.py  rome.py
+│   └── eval/
+│       └── metrics.py  scenarios.py  plasticity.py  flatness.py
+├── <span class="a">olmo2_cl/</span>                   <span class="c">← vendored + modified model code</span>
+│   ├── modeling_olmo2.py
+│   └── configuration_olmo2.py
+├── configs/                     <span class="c">one YAML per experimental stack</span>
+└── runs/                        <span class="c">checkpoints, logs, metric dumps</span></pre>
+  <div class="note"><b>Build F16 first.</b> The measurement modules are the only ones every other module depends on for its verdict. If the sweep runs before the metrics exist, you'll have results you can't rank.</div>
+</section>
+
+<section class="sec">
+  <span class="sec-tag">The model code</span>
+  <h2>Where OLMo 2's architecture lives</h2>
+  <p>Three places hold it, at different levels of abstraction. For injecting mechanisms, you want the second one.</p>
+
+  <div class="card">
+    <h3>1 · Single-file reference implementation — recommended</h3>
+    <p class="repo">huggingface/transformers → src/transformers/models/olmo2/</p>
+    <p>Contains <code>modeling_olmo2.py</code> and <code>configuration_olmo2.py</code>. Roughly 600–800 lines holding everything you asked for: <code>Olmo2Attention</code>, <code>Olmo2MLP</code>, <code>Olmo2RMSNorm</code>, <code>Olmo2RotaryEmbedding</code>, <code>Olmo2DecoderLayer</code>, <code>Olmo2Model</code>, <code>Olmo2ForCausalLM</code>. It loads the released checkpoints directly, so you can start from a pretrained model or from scratch with the same code.</p>
+    <p>There's also a <code>modular_olmo2.py</code> in that directory expressing OLMo 2 as a diff against Llama — worth reading first, because it shows in a few dozen lines exactly what OLMo 2 changed (norm placement and QK-norm) rather than making you diff two 800-line files yourself.</p>
+  </div>
+
+  <div class="card">
+    <h3>2 · The real training stack</h3>
+    <p class="repo">allenai/OLMo-core</p>
+    <p>AI2's current training framework and where OLMo 2 is actually trained. Model building blocks live under <code>olmo_core/nn/</code> — attention, feedforward, rope, normalization — with the block and full model under <code>olmo_core/nn/transformer/</code>. Fork this if you want production-grade distributed training, FSDP, and the real data pipeline. Heavier to modify than the HF file.</p>
+    <p class="repo">allenai/OLMo</p>
+    <p>The original repo; <code>olmo/model.py</code> is a very readable near-single-file implementation. Primarily OLMo 1, with OLMo 2 work having moved to OLMo-core — useful as a reading reference, less so as your base.</p>
+  </div>
+
+  <div class="card">
+    <h3>3 · Weights and configs</h3>
+    <p class="repo">huggingface.co/allenai — OLMo-2 model repos</p>
+    <p>The 1B checkpoint plus the 7B/13B/32B siblings, and the intermediate training checkpoints that make this backbone worth choosing. Pull the config from here even if you train from scratch, so your architecture matches something with published baselines.</p>
+  </div>
+
+  <h4>How to fork it</h4>
+  <p>Don't fork all of <code>transformers</code> — it's enormous and you'd be maintaining a fork of a fast-moving library. Instead <strong>vendor the two files</strong> into your own repo as <code>olmo2_cl/</code>, register them as a custom model, and load released weights with <code>trust_remote_code=True</code>. You own the file outright, mechanisms inject cleanly, and you can still <code>pip install transformers</code> normally for everything else.</p>
+<pre><span class="c"># the injection points you'll be reaching for</span>
+Olmo2MLP.forward         <span class="c">→ swap for memory layer / MoE / k-WTA (F04, F10)</span>
+Olmo2DecoderLayer        <span class="c">→ per-layer routing: which blocks get which mechanism</span>
+Olmo2Model.forward       <span class="c">→ prompt prepending (F05), persistent state (F10)</span>
+Olmo2Attention           <span class="c">→ swap for gated linear attention (F10)</span>
+Olmo2ForCausalLM.forward <span class="c">→ expose logits + hidden states for L and eval hooks</span></pre>
+  <div class="note"><b>Verify the paths before cloning.</b> These are from memory, not fetched. Repository layouts and exact model-repo names (the 1B was released later than the 7B/13B) shift between releases — confirm on GitHub and the HF hub first.</div>
+</section>
+
+<footer>
+  Registry compiled from the 13 papers in ../All PDF plus the mechanism families you specified. "external" entries have no paper in the folder and would need to be pulled in. Tier assignments are judgment calls, not results — revise them as the sweep produces evidence.
+</footer>
+
+</div>

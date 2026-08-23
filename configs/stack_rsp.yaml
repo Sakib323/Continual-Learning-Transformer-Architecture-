@@ -1,0 +1,15 @@
+# Curated stack: replay + sparsity + plasticity maintenance.
+# The three families that the reading list suggests should compound.
+run:
+  name: stack_rsp
+mechanisms:
+  replay:
+    enabled: true
+    capacity: 2000
+    ratio: 0.25
+  kwta:
+    enabled: true
+    k_fraction: 0.15
+  continual_backprop:
+    enabled: true
+    rho: 0.0001

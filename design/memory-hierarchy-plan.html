@@ -1,0 +1,421 @@
+<title>The Frequency-Graded Memory Stack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&family=Fira+Mono:wght@400;500;700&display=swap">
+
+<style>
+:root{
+  --paper:#F1F2F5;
+  --surface:#FAFAFC;
+  --surface-2:#E5E6EC;
+  --ink:#16181F;
+  --ink-2:#3C4150;
+  --ink-3:#6C7285;
+  --rule:#D5D7E0;
+  --rule-2:#B6B9C7;
+  /* frequency spectrum: fast (warm) -> slow (cool) */
+  --f0:#A8410B;
+  --f1:#9A5A18;
+  --f2:#5E5C86;
+  --f3:#26417E;
+  --f0-bg:#F5E1D4;
+  --f1-bg:#F2E7D0;
+  --f2-bg:#E2E1EE;
+  --f3-bg:#D8E0F2;
+  --pick:#26417E;
+  --warn:#8E3F4C;
+  --warn-bg:#F0DCDF;
+  --code:#E7E8EF;
+  --shadow:0 1px 2px rgba(22,24,31,.05),0 12px 32px -24px rgba(22,24,31,.55);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D0E14;
+    --surface:#15171F;
+    --surface-2:#1D1F2A;
+    --ink:#E6E7EE;
+    --ink-2:#B4B8C6;
+    --ink-3:#828798;
+    --rule:#272A36;
+    --rule-2:#3B3F4D;
+    --f0:#E8905C;
+    --f1:#DFB061;
+    --f2:#A9A5D8;
+    --f3:#8FAAE8;
+    --f0-bg:#33190E;
+    --f1-bg:#2E2512;
+    --f2-bg:#22202F;
+    --f3-bg:#16203A;
+    --pick:#8FAAE8;
+    --warn:#E08C99;
+    --warn-bg:#2F181C;
+    --code:#191C25;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 14px 36px -26px #000;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D0E14;--surface:#15171F;--surface-2:#1D1F2A;
+  --ink:#E6E7EE;--ink-2:#B4B8C6;--ink-3:#828798;
+  --rule:#272A36;--rule-2:#3B3F4D;
+  --f0:#E8905C;--f1:#DFB061;--f2:#A9A5D8;--f3:#8FAAE8;
+  --f0-bg:#33190E;--f1-bg:#2E2512;--f2-bg:#22202F;--f3-bg:#16203A;
+  --pick:#8FAAE8;--warn:#E08C99;--warn-bg:#2F181C;--code:#191C25;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 14px 36px -26px #000;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:Literata,Georgia,serif;font-size:16.5px;line-height:1.66;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--pick);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--pick) 35%,transparent)}
+a:hover{border-bottom-color:var(--pick)}
+a:focus-visible{outline:2px solid var(--pick);outline-offset:3px;border-radius:2px}
+.wrap{max-width:960px;margin:0 auto;padding:0 26px 120px}
+
+.mast{padding:62px 0 32px}
+.kicker{
+  font-family:"Fira Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.19em;
+  text-transform:uppercase;color:var(--f0);margin:0 0 20px;font-weight:500;
+}
+h1{
+  font-family:"Bricolage Grotesque","Helvetica Neue",sans-serif;font-weight:800;
+  font-size:clamp(2.3rem,6.6vw,4.15rem);line-height:.97;letter-spacing:-.03em;
+  margin:0 0 22px;text-wrap:balance;max-width:15ch;
+}
+.dek{font-size:clamp(1.02rem,1.9vw,1.2rem);color:var(--ink-2);max-width:64ch;margin:0 0 26px}
+.spectrum{height:5px;border-radius:3px;background:linear-gradient(90deg,var(--f0),var(--f1),var(--f2),var(--f3));margin:0}
+
+h2{
+  font-family:"Bricolage Grotesque","Helvetica Neue",sans-serif;font-weight:700;
+  font-size:clamp(1.55rem,3.4vw,2.15rem);letter-spacing:-.022em;line-height:1.08;
+  margin:0 0 8px;text-wrap:balance;
+}
+h3{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:1.15rem;letter-spacing:-.012em;margin:0 0 6px}
+h4{
+  font-family:"Fira Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.17em;
+  text-transform:uppercase;color:var(--ink-3);font-weight:500;margin:24px 0 9px;
+}
+.sec{padding:54px 0 0}
+.sec-tag{
+  font-family:"Fira Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.19em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 12px;display:block;
+}
+p{margin:0 0 15px;max-width:70ch}
+ul{margin:0 0 16px;padding-left:20px}
+li{margin:0 0 9px;max-width:69ch}
+li::marker{color:var(--ink-3)}
+strong{font-weight:600}
+
+/* verdict */
+.verdict{
+  background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--pick);
+  border-radius:2px;padding:24px 28px;margin:0 0 26px;box-shadow:var(--shadow);
+}
+.verdict h3{margin-bottom:8px}
+.verdict p:last-child{margin-bottom:0}
+
+/* spectrum levels */
+.levels{display:flex;flex-direction:column;gap:10px;margin:22px 0 24px}
+.lv{
+  display:grid;grid-template-columns:1fr;gap:8px;
+  border-radius:3px;padding:16px 18px;border:1px solid var(--rule);
+}
+@media(min-width:760px){.lv{grid-template-columns:112px 172px 1fr;gap:20px;align-items:start}}
+.lv.l0{background:var(--f0-bg);border-color:color-mix(in srgb,var(--f0) 35%,transparent)}
+.lv.l1{background:var(--f1-bg);border-color:color-mix(in srgb,var(--f1) 35%,transparent)}
+.lv.l2{background:var(--f2-bg);border-color:color-mix(in srgb,var(--f2) 35%,transparent)}
+.lv.l3{background:var(--f3-bg);border-color:color-mix(in srgb,var(--f3) 35%,transparent)}
+.lv-f{font-family:"Fira Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700}
+.lv.l0 .lv-f{color:var(--f0)}.lv.l1 .lv-f{color:var(--f1)}
+.lv.l2 .lv-f{color:var(--f2)}.lv.l3 .lv-f{color:var(--f3)}
+.lv-n{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:15.5px;color:var(--ink)}
+.lv-d{font-size:14.5px;color:var(--ink-2);line-height:1.5}
+.lv-d code{background:color-mix(in srgb,var(--surface) 70%,transparent)}
+
+/* tables */
+.tw{overflow-x:auto;border:1px solid var(--rule);border-radius:2px;background:var(--surface);margin:0 0 20px}
+table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:660px}
+th,td{text-align:left;padding:12px 15px;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{
+  font-family:"Fira Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink-3);font-weight:500;background:var(--surface-2);
+}
+tbody tr:last-child td{border-bottom:0}
+td.n,th.n{font-family:"Fira Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.pickrow td{background:color-mix(in srgb,var(--f3-bg) 60%,transparent)}
+.tag{
+  display:inline-block;font-family:"Fira Mono",ui-monospace,monospace;font-size:9.5px;
+  letter-spacing:.11em;text-transform:uppercase;padding:3px 8px;border-radius:2px;white-space:nowrap;font-weight:500;
+}
+.tag.core{background:var(--f0-bg);color:var(--f0)}
+.tag.yes{background:var(--f3-bg);color:var(--f3)}
+.tag.maybe{background:var(--f1-bg);color:var(--f1)}
+.tag.no{background:var(--surface-2);color:var(--ink-3)}
+
+/* code */
+pre{
+  font-family:"Fira Mono",ui-monospace,monospace;font-size:13px;line-height:1.7;
+  background:var(--code);border-radius:3px;padding:15px 17px;margin:0 0 16px;
+  overflow-x:auto;color:var(--ink);
+}
+pre .c{color:var(--ink-3)}
+code{font-family:"Fira Mono",ui-monospace,monospace;font-size:.86em;background:var(--code);padding:1.5px 5px;border-radius:2px}
+.repo{font-family:"Fira Mono",ui-monospace,monospace;font-size:12.5px;color:var(--pick)}
+
+/* callouts */
+.warn{border-left:3px solid var(--warn);background:color-mix(in srgb,var(--warn-bg) 55%,transparent);
+  padding:14px 18px;margin:0 0 20px;border-radius:0 3px 3px 0;font-size:15.5px}
+.warn b{color:var(--warn)}
+.key{border-left:3px solid var(--f0);background:color-mix(in srgb,var(--f0-bg) 50%,transparent);
+  padding:14px 18px;margin:0 0 20px;border-radius:0 3px 3px 0;font-size:15.5px}
+.key b{color:var(--f0)}
+
+/* steps */
+.steps{display:flex;flex-direction:column;margin:20px 0 8px}
+.step{display:grid;grid-template-columns:40px 1fr;gap:18px;padding:19px 0;border-bottom:1px solid var(--rule)}
+.step:last-child{border-bottom:0}
+.sn{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:1.45rem;color:var(--f3);font-variant-numeric:tabular-nums;line-height:1.15}
+.step .meta{font-family:"Fira Mono",ui-monospace,monospace;font-size:10.5px;color:var(--ink-3);
+  letter-spacing:.09em;margin:0 0 8px;text-transform:uppercase}
+.step p{font-size:15.5px;margin-bottom:8px}
+
+footer{border-top:1px solid var(--rule);margin-top:58px;padding-top:26px;
+  font-family:"Fira Mono",ui-monospace,monospace;font-size:12px;color:var(--ink-3);line-height:1.7}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="kicker">Architecture plan · continual learning from scratch</p>
+  <h1>The Frequency-Graded Memory Stack</h1>
+  <p class="dek">Which backbone to build on, which of the thirteen mechanisms to actually implement, and a design that ties four of them into one coherent system instead of a pile of patches. Two paths costed separately: pretraining 0.2–1B yourself, and grafting the same machinery onto an existing open model.</p>
+  <div class="spectrum"></div>
+</header>
+
+<!-- ARCH -->
+<section class="sec">
+  <span class="sec-tag">Question 1</span>
+  <h2>Which architecture to build on</h2>
+  <p>Four things matter for this specific project, and the fourth is the one people forget:</p>
+  <ul>
+    <li><strong>Modern architecture</strong> — so your result isn't obsolete on arrival.</li>
+    <li><strong>Hackable code on GitHub</strong> — you're inserting layers, not calling an API.</li>
+    <li><strong>Trainable at 0.2–1B</strong> on hardware you can actually get.</li>
+    <li><strong>Known pretraining data and intermediate checkpoints.</strong> Forgetting is defined relative to what was learned. Without data transparency you cannot measure your own thesis — you can only measure proxy benchmarks and guess.</li>
+  </ul>
+
+  <div class="verdict">
+    <h3>Pick: OLMo 2 1B as the backbone. SmolLM2-360M as the prototyping rig.</h3>
+    <p>OLMo 2 is the only genuinely modern architecture in this size class that ships the training code, the full data mix, <em>and</em> hundreds of intermediate checkpoints. For continual-learning research that trio is not a convenience — it's your measurement instrument. Prototype every mechanism on SmolLM2-360M where iteration is measured in hours, then port to OLMo 2 1B for the real numbers.</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Candidate</th><th class="n">Sizes</th><th>Architecture</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr class="pickrow">
+          <td><strong>OLMo 2</strong><br><span class="repo">allenai/OLMo · OLMo-core</span></td>
+          <td class="n">1B, 7B</td>
+          <td>RMSNorm applied to attention/FFN <em>outputs</em> (reordered norm), QK-Norm, RoPE, SwiGLU, no biases, z-loss. AI2 published the stability ablations behind each choice.</td>
+          <td><span class="tag core">Primary</span><br>Fully open data + checkpoints. The measurement story is decisive.</td>
+        </tr>
+        <tr>
+          <td><strong>SmolLM2</strong><br><span class="repo">huggingface/smollm</span></td>
+          <td class="n">135M, 360M<br>1.7B</td>
+          <td>Llama-style: GQA, RoPE, SwiGLU, RMSNorm, tied embeddings. Public recipe, trained via nanotron.</td>
+          <td><span class="tag yes">Prototyping</span><br>Best iteration speed. Recipe public, data mix documented.</td>
+        </tr>
+        <tr>
+          <td><strong>Gemma 3</strong><br><span class="repo">google/gemma_pytorch</span></td>
+          <td class="n">270M, 1B</td>
+          <td>Interleaved local:global attention 5:1 (1024-token sliding window), separate RoPE theta per type (10k local / 1M global), QK-Norm, GQA, tied embeddings at small scale.</td>
+          <td><span class="tag maybe">Arch reference</span><br>The most modern patterns here, and local/global interleaving is conceptually adjacent to what you're building. Data not open.</td>
+        </tr>
+        <tr>
+          <td><strong>Qwen3</strong><br><span class="repo">QwenLM/Qwen3</span></td>
+          <td class="n">0.6B, 1.7B</td>
+          <td>GQA, QK-Norm, RoPE, SwiGLU, tied embeddings.</td>
+          <td><span class="tag maybe">Finetune target</span><br>Strongest quality per parameter in range. Use if Path B is your main line.</td>
+        </tr>
+        <tr>
+          <td><strong>flash-linear-attention</strong><br><span class="repo">fla-org/flash-linear-attention</span></td>
+          <td class="n">library</td>
+          <td>Triton kernels + drop-in modules for GLA, DeltaNet, <strong>Gated DeltaNet</strong>, RWKV-7, Mamba-2, HGRN-2, with HF-compatible wrappers.</td>
+          <td><span class="tag yes">For mechanism 9</span><br>If you want a real test-time-updating memory, this is the substrate. Not a backbone by itself.</td>
+        </tr>
+        <tr>
+          <td><strong>Memory layers</strong><br><span class="repo">Meta, released with Berges et al.</span></td>
+          <td class="n">component</td>
+          <td>Product-key sparse memory, trainable K/V, top-k lookup.</td>
+          <td><span class="tag core">For mechanism 3</span><br>The component you port. Verify the current repo path before cloning.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p><strong>On hybrids.</strong> If you want to be aggressive, interleave a few Gated DeltaNet layers with full attention — that's the pattern Qwen3-Next and Nemotron-H use, and it's the current best answer for long context plus persistent state. It also happens to give you mechanism 9 almost for free, because a gated linear-attention layer <em>is</em> a fast-weight memory. Treat it as an upgrade after the baseline works, not a starting condition.</p>
+</section>
+
+<!-- THESIS -->
+<section class="sec">
+  <span class="sec-tag">Question 2 · the design</span>
+  <h2>Don't pick one mechanism. Build a frequency hierarchy.</h2>
+  <p>The single most useful idea across the thirteen papers is Nested Learning's reframe: a Transformer is a two-level system built from the two most extreme update frequencies available — attention at ∞ (recomputed every token) and MLP at 0 (frozen after pretraining). Nothing in between. Every continual-learning method is, in effect, an attempt to manufacture an intermediate frequency by other means.</p>
+  <p>So manufacture it directly. Four levels, each with its own update rate, its own write rule, and its own paper:</p>
+
+  <div class="levels">
+    <div class="lv l0">
+      <span class="lv-f">every token</span>
+      <span class="lv-n">L0 · Attention KV</span>
+      <span class="lv-d">Standard context. Nothing to build — this is what you already get. Holds the current document, discarded at the boundary.</span>
+    </div>
+    <div class="lv l1">
+      <span class="lv-f">token · persists</span>
+      <span class="lv-n">L1 · Fast-weight state</span>
+      <span class="lv-d">Gated DeltaNet layers whose recurrent state <code>M_t = α_t·M_{t−1} + v_t k_tᵀ</code> is <strong>carried across documents</strong>, not reset. Holds the recent episode. <strong>Mechanism 9.</strong> Optional; add after the baseline works.</span>
+    </div>
+    <div class="lv l2">
+      <span class="lv-f">every batch</span>
+      <span class="lv-n">L2 · Sparse memory layer</span>
+      <span class="lv-d">One FFN replaced by a product-key memory, ~512k slots, top-32 lookup. Writes go only to the top-<code>t</code> slots by TF-IDF specificity against a frozen background corpus. Holds new facts. <strong>Mechanism 3 — the core of the system.</strong></span>
+    </div>
+    <div class="lv l3">
+      <span class="lv-f">rare · gated</span>
+      <span class="lv-n">L3 · Backbone FFN</span>
+      <span class="lv-d">Updated infrequently and only alongside a replay mix, with plasticity maintenance running continuously. Holds consolidated knowledge. <strong>Mechanisms 1, 11, 13.</strong></span>
+    </div>
+  </div>
+
+  <p>Plus a <strong>consolidation policy</strong> that periodically moves L2 → L3: sample from the memory layer's recently-written slots, generate training data from them, mix with replay, and take a slow update on the backbone. That's the "sleep" step — systems consolidation, in the complementary-learning-systems sense. It's the piece that makes this a system rather than four independent tricks.</p>
+
+  <div class="key"><b>Why this is the right shape.</b> Every level maps to a paper you already have, and the failure mode of each is covered by another. L2 forgets fast but L3 holds the consolidated copy. L3 loses plasticity but continual backprop replenishes it. L2 writes interfere but sparsity keeps overlap exponentially small. That mutual coverage is the thing a single mechanism can't give you — and it's the argument the Nested Learning paper makes explicitly about why multi-frequency memory resists forgetting: knowledge dropped by a fast block is still held by a slower one and can be circled back.</div>
+
+  <div class="warn"><b>This synthesis is mine, not any single paper's.</b> No one has published this exact four-level stack. The individual pieces are each validated — memory layers at 1.3B, continual backprop over 800 tasks, CMS on Llama-3 backbones — but their <em>combination</em> is unproven and the interactions are where the risk lives. Build it incrementally, in the order below, and measure after each addition. If you build all four at once and it underperforms, you will not know which level broke it.</div>
+</section>
+
+<!-- PATH A -->
+<section class="sec">
+  <span class="sec-tag">Question 3 · Path A</span>
+  <h2>If you pretrain 0.2–1B yourself</h2>
+  <p>Four things go into the architecture. Everything else is either training policy or a baseline.</p>
+
+  <h4>Build · mechanism 3 · sparse memory layer</h4>
+  <p>The highest-value item, and the one with the strongest recent evidence: NaturalQuestions F1 dropped 11% versus 89% for full finetuning and 71% for LoRA, at matched acquisition — a Pareto improvement, not a tradeoff. Swap one mid-stack FFN (layer 12 of 24) for a product-key memory. Critically, <strong>pretrain with it in place from step 0</strong>; the slots need to be populated by the pretraining distribution for the specificity ranking to mean anything later.</p>
+<pre>I      = topk_indices(K @ q(x), k)     <span class="c">k=32 of N≈512k, product keys</span>
+s      = softmax(K[I] @ q(x))
+y      = s @ V[I]
+out    = (y * silu(x @ W1)) @ W2
+
+<span class="c"># write rule — TF-IDF slot specificity vs a frozen background corpus</span>
+             c(i)                |B| + 1
+score(i) = ─────────── · log ───────────────────────
+           Σ_j c(j)          Σ_b 1[c_b(i) > 0] + 1
+
+<span class="c"># train top-t values only; straight-through mask, top-t changes every forward pass</span>
+mem = mem * mask + mem.detach() - (mem * mask).detach()</pre>
+  <p>Start at <code>t=500</code> for single facts, <code>t≈10_000</code> for document batches. The ranking is batch-level, so it assumes nothing about task boundaries. Two findings worth carrying over: TF-IDF beats raw frequency and the gap widens as <code>t</code> shrinks; and plain SGD outperformed AdamW for the sparse parameters specifically, with no equivalent gain for dense baselines.</p>
+
+  <h4>Build · mechanism 11 · plasticity maintenance</h4>
+  <p>Non-negotiable if you train continually. Adam was the <em>worst</em> case tested — plasticity plummets and effective rank collapses; dropout and normalization also made it worse; only continual backprop held flat over 800 tasks. Instrument first (<code>dead_frac</code>, <code>eff_rank</code>, <code>mean_abs_w</code> per group), then add selective reinitialization: replace the lowest-utility fraction <code>ρ</code> of units per layer per step, zero outgoing weights so the function doesn't jump, maturity threshold <code>m</code> before a new unit can be re-selected.</p>
+<pre>       | h − f̂ | · Σ_k |w_out[k]|
+y  =  ──────────────────────────────      <span class="c">contribution ÷ adaptation cost</span>
+             Σ_j |w_in[j]|
+
+u = η·u_prev + (1−η)·y ;  û = u_prev / (1 − η^age)</pre>
+  <p>At 2048 hidden units, <code>ρ = 1e−4</code> replaces roughly one unit per layer every five examples. If you want a one-line version first, shrink-and-perturb captures most of the benefit.</p>
+
+  <h4>Build · mechanism 9 · persistent fast weights</h4>
+  <p>Optional, and strictly after the rest works. Swap a few attention layers for Gated DeltaNet from <span class="repo">flash-linear-attention</span> and carry the recurrent state across document boundaries within a training group. Cheap first experiment: take any linear-attention layer, stop resetting its state between documents, and measure backward transfer. That tests the premise for near-zero cost before you commit to a hybrid design.</p>
+  <div class="warn"><b>Scope discipline.</b> Do not build full Hope. The self-referential Titans half — promoting <code>W_k</code>, <code>W_v</code>, <code>W_q</code>, <code>W_η</code>, <code>W_α</code> all to memories that generate their own values — is a large, high-risk build, and the paper's own tables show a plain Transformer still beating Hope 61.4 to 14.8 on 16K multi-key retrieval. Take the multi-frequency idea. Leave the rest.</div>
+
+  <h4>Policy · mechanisms 1 + 13 · replay and re-warming</h4>
+  <p>Not architecture, but it's the number everything else must beat, and it's probably also just part of your final recipe. A 10% replay mix gave the best overall performance for every model TRACE tested, with <em>positive</em> backward transfer. Add deliberate LR re-warming per stream segment. When you move past pretraining into knowledge injection, upgrade raw replay to logit matching:</p>
+<pre>L = L_stream + α·‖z′ − h_θ(x′)‖²  + β·CE(y″, f_θ(x″))    <span class="c">α = β = 0.5</span></pre>
+  <p>Store logits sampled throughout the trajectory via reservoir sampling, not at segment boundaries — that's what separates DER from FDR, and DER++ at buffer 200 beat plain replay at buffer 500.</p>
+</section>
+
+<!-- PATH B -->
+<section class="sec">
+  <span class="sec-tag">Question 4 · Path B</span>
+  <h2>Setting the scratch model aside entirely</h2>
+  <p>You asked which options are good <em>without</em> assuming you train from scratch. The answer is meaningfully different, because a strong pretrained backbone unlocks two families that are useless at 1B-from-scratch, and complicates the one that matters most.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Mechanism</th><th>On a pretrained model</th><th>Cost</th></tr></thead>
+      <tbody>
+        <tr><td><strong>7 · Task arithmetic</strong></td><td><span class="tag core">Do this first</span> Finetune per domain, merge the deltas. Absurdly cheap, embarrassingly competitive, and almost nobody frames it as continual learning. Run it before building anything — it may dissolve a large fraction of your problem.</td><td class="n">hours</td></tr>
+        <tr><td><strong>8 · Retrieval</strong></td><td><span class="tag core">Do this first</span> Zero forgetting because no weights move. Not a full solution — it gives facts, not skills — but if you skip this tier you'll burn gradient steps on things a lookup solves. The sparse-memory authors say plainly that RAG is the natural solution for the tasks they benchmark.</td><td class="n">days</td></tr>
+        <tr><td><strong>4 · Prompts / frozen backbone</strong></td><td><span class="tag yes">Now viable</span> L2P hit 83.83% with a <em>zero-size</em> buffer, beating rehearsal methods that had one. Requires a strong frozen backbone, which you now have. Add ~0.05% parameters as a prompt pool with instance-wise key-query selection.</td><td class="n">days</td></tr>
+        <tr><td><strong>13 · Continual pretraining</strong></td><td><span class="tag yes">The industrial baseline</span> LR re-warming plus a replay mix. Well-validated at scale, unglamorous, works. Include it so you know what your clever thing is actually buying.</td><td class="n">days</td></tr>
+        <tr><td><strong>10 · Knowledge editing</strong></td><td><span class="tag maybe">If facts are the target</span> ROME/MEMIT for single edits; the hard version is thousands of <em>sequential</em> edits without collapse. Only worth it if your "new information" is genuinely factual rather than skill-shaped.</td><td class="n">weeks</td></tr>
+        <tr><td><strong>3 · Sparse memory</strong></td><td><span class="tag maybe">Needs grafting</span> See the warning below — this is the one that gets harder, not easier, on a pretrained model.</td><td class="n">weeks</td></tr>
+        <tr><td><strong>2 · Orthogonal subspaces</strong></td><td><span class="tag maybe">O-LoRA only</span> Gradient projection on a full backbone is impractical, but allocating each task a mutually orthogonal low-rank adapter subspace is cheap and works. The full-model GPM variant, skip.</td><td class="n">days</td></tr>
+        <tr><td><strong>11 · Plasticity</strong></td><td><span class="tag no">Less urgent</span> Matters when you train long and continually. For a short finetuning schedule on a pretrained model it's largely moot.</td><td class="n">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="warn"><b>The gotcha that will cost you a month if you miss it.</b> Memory layers were <strong>pretrained in</strong>. The Meta result comes from a model that had the memory layer from step 0, so its million slots carry a meaningful distribution over pretraining data — which is exactly what the IDF term in the ranking measures against. Bolt a randomly-initialized memory layer onto a finished Qwen3 or OLMo and the slots are noise: there is no background access distribution, so specificity ranking is meaningless and the layer just damages the residual stream. Grafting one requires an upcycling phase — replace the FFN, initialize from it, and continue pretraining on enough tokens for the access pattern to stabilize before any of the sparse machinery applies. That's real compute, and it's the strongest single argument for <strong>Path A</strong> if mechanism 3 is your thesis.</div>
+
+  <p><strong>Cheaper substitute if you stay on Path B:</strong> apply the same specificity logic to the FFN neurons you already have. Rank existing neurons by activation on the new batch relative to a background corpus, and mask gradients to the top-<code>t</code>. No architecture change, no upcycling phase, and it tests whether the sparsity principle transfers before you pay for the real thing. Weaker than a memory layer — the granularity is thousands of neurons, not a million slots — but it's a two-day experiment instead of a two-month one.</p>
+</section>
+
+<!-- SKIP -->
+<section class="sec">
+  <span class="sec-tag">Question 5</span>
+  <h2>What to skip, and why</h2>
+  <ul>
+    <li><strong>5 · Hypernetworks.</strong> Something must supply the task embedding at inference. Entropy-based inference dropped to 69.48% on split MNIST CL3, and the strong numbers came from adding a replay model or a task classifier — which relocates the problem rather than solving it. Your stream has no task IDs. Steal the idea (regularize in a low-dimensional space instead of million-dimensional weight space); don't build the machinery.</li>
+    <li><strong>6 · Meta-learning the update rule.</strong> The most compute-hungry item on the list, and at 0.2–1B you don't have the budget for a bi-level outer loop. Nested Learning gives you the conceptual payoff — optimizers <em>are</em> associative memories, momentum <em>is</em> a second optimization level — without paying for it.</li>
+    <li><strong>2 · Gradient projection specifically.</strong> GPM gets literally zero forgetting by monotonically consuming free gradient directions: the core gradient space grows and the residual space shrinks with every task. Fine for 10–20 tasks; fatal for an unbounded pretraining stream, and it fights plasticity maintenance directly. Keep the <em>flat-minima</em> half of mechanism 2 — it's nearly free, and it appears as a real term in the survey's generalization bounds. Measure it via the trace of the empirical Fisher.</li>
+    <li><strong>12 · Bio-inspired, as an implementation.</strong> Keep it as the organizing metaphor — the four-level stack above <em>is</em> complementary learning systems, and that framing is load-bearing. But there's no specific bio-inspired algorithm here worth building at this scale. (One exception: if you ever quantize to binary or ternary weights, synaptic metaplasticity becomes nearly free, because the shadow weight is already a consolidation variable. Not applicable to a standard FP backbone.)</li>
+  </ul>
+</section>
+
+<!-- ORDER -->
+<section class="sec">
+  <span class="sec-tag">Sequence</span>
+  <h2>Build order</h2>
+  <p>A real dependency chain. Each step's output is the next step's measuring stick.</p>
+  <div class="steps">
+    <div class="step"><span class="sn">1</span><div>
+      <h3>The measurement harness</h3>
+      <p class="meta">1 week · no model changes · blocks everything else</p>
+      <p>Pick OLMo 2 1B. Build a forgetting benchmark against <em>its known pretraining data</em> — held-out probes from the actual mix, not generic benchmarks. Add the plasticity probes. Define your stream (what constitutes a "task"). Without this you cannot evaluate a single thing below.</p>
+    </div></div>
+    <div class="step"><span class="sn">2</span><div>
+      <h3>The boring baselines</h3>
+      <p class="meta">1 week · task arithmetic + replay + RAG</p>
+      <p>Merge deltas. Run 10% replay with LR re-warming. Stand up a retrieval tier. Now you know what unglamorous methods achieve, which is the bar. A surprising number of projects discover here that they don't need the rest.</p>
+    </div></div>
+    <div class="step"><span class="sn">3</span><div>
+      <h3>L2 — the memory layer</h3>
+      <p class="meta">3–4 weeks · the core build · prototype on SmolLM2-360M first</p>
+      <p>Pretrain with a memory layer at mid-stack from step 0. Add TF-IDF sparse writes. This is where the order-of-magnitude result lives if it appears anywhere. Test SGD versus AdamW for the memory parameter group specifically.</p>
+    </div></div>
+    <div class="step"><span class="sn">4</span><div>
+      <h3>L3 — plasticity maintenance</h3>
+      <p class="meta">1–2 weeks · shrink-and-perturb, then continual backprop</p>
+      <p>Tune against the step-1 probes. Expect most of the time to go into the utility measure rather than the reinitialization itself.</p>
+    </div></div>
+    <div class="step"><span class="sn">5</span><div>
+      <h3>The consolidation policy</h3>
+      <p class="meta">2 weeks · the piece that makes it a system</p>
+      <p>Periodic L2 → L3 transfer: sample recently-written memory slots, synthesize training data, mix with replay, slow update on the backbone. This is the novel contribution — nothing in the thirteen papers does exactly this.</p>
+    </div></div>
+    <div class="step"><span class="sn">6</span><div>
+      <h3>L1 — persistent fast weights</h3>
+      <p class="meta">optional · highest risk · only if 1–5 are stable</p>
+      <p>Run the free experiment first: persist a linear-attention state across documents and measure backward transfer. If that moves the needle, invest in a Gated DeltaNet hybrid. If it doesn't, you've saved a month.</p>
+    </div></div>
+  </div>
+</section>
+
+<footer>
+  Grounded in the thirteen papers in ../All PDF. The four-level stack and the L2→L3 consolidation policy are a synthesis, not a result from any single paper — treat them as a hypothesis to test incrementally. Repository paths are from memory; verify before cloning.
+</footer>
+
+</div>

@@ -1,0 +1,433 @@
+<title>CLMS Build Workflow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Karla:ital,wght@0,400;0,500;0,600;1,400&family=Azeret+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --paper:#EEF1F4;
+  --surface:#F9FBFC;
+  --surface-2:#DFE5EA;
+  --ink:#0F171E;
+  --ink-2:#3B4753;
+  --ink-3:#697682;
+  --rule:#CFD8DF;
+  --rule-2:#AEB9C3;
+  --blue:#0F5C8C;
+  --blue-bg:#D8E6F0;
+  --rust:#AF4419;
+  --rust-bg:#F2DFD5;
+  --green:#1B6B4A;
+  --green-bg:#D7E9E0;
+  --code:#E3E8ED;
+  --shadow:0 1px 2px rgba(15,23,30,.05),0 12px 30px -24px rgba(15,23,30,.6);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0B0F13;
+    --surface:#141A20;
+    --surface-2:#1C242B;
+    --ink:#E5EAEF;
+    --ink-2:#B2BCC5;
+    --ink-3:#7F8B96;
+    --rule:#242D35;
+    --rule-2:#38434D;
+    --blue:#68AEDC;
+    --blue-bg:#0F2536;
+    --rust:#E08E68;
+    --rust-bg:#2E1A11;
+    --green:#57BC93;
+    --green-bg:#102A21;
+    --code:#171D24;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 14px 34px -26px #000;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0B0F13;--surface:#141A20;--surface-2:#1C242B;
+  --ink:#E5EAEF;--ink-2:#B2BCC5;--ink-3:#7F8B96;
+  --rule:#242D35;--rule-2:#38434D;
+  --blue:#68AEDC;--blue-bg:#0F2536;--rust:#E08E68;--rust-bg:#2E1A11;
+  --green:#57BC93;--green-bg:#102A21;--code:#171D24;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 14px 34px -26px #000;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:Karla,"Helvetica Neue",sans-serif;font-size:16.5px;line-height:1.62;
+  -webkit-font-smoothing:antialiased}
+a{color:var(--blue);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--blue) 38%,transparent)}
+a:hover{border-bottom-color:var(--blue)}
+a:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:2px}
+.wrap{max-width:980px;margin:0 auto;padding:0 26px 120px}
+
+.mast{padding:58px 0 30px;border-bottom:1px solid var(--rule)}
+.kicker{font-family:"Azeret Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--blue);margin:0 0 18px}
+h1{font-family:Manrope,"Helvetica Neue",sans-serif;font-weight:800;
+  font-size:clamp(2.2rem,6.2vw,3.85rem);line-height:1;letter-spacing:-.034em;
+  margin:0 0 20px;text-wrap:balance;max-width:16ch}
+.dek{font-size:clamp(1rem,1.9vw,1.15rem);color:var(--ink-2);max-width:66ch;margin:0}
+
+h2{font-family:Manrope,sans-serif;font-weight:800;font-size:clamp(1.5rem,3.2vw,2.05rem);
+  letter-spacing:-.025em;line-height:1.08;margin:0 0 8px;text-wrap:balance}
+h3{font-family:Manrope,sans-serif;font-weight:700;font-size:1.12rem;letter-spacing:-.012em;margin:0 0 6px}
+h4{font-family:"Azeret Mono",monospace;font-size:10px;letter-spacing:.17em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500;margin:24px 0 9px}
+.sec{padding:52px 0 0}
+.sec-tag{font-family:"Azeret Mono",monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 11px;display:block}
+p{margin:0 0 14px;max-width:71ch}
+ul,ol{margin:0 0 15px;padding-left:20px}
+li{margin:0 0 8px;max-width:69ch}
+li::marker{color:var(--ink-3)}
+strong{font-weight:600}
+
+/* risk blocks */
+.risk{border:1px solid var(--rule);border-left:3px solid var(--rust);background:var(--surface);
+  border-radius:2px;padding:18px 22px;margin:0 0 16px;box-shadow:var(--shadow)}
+.risk .rn{font-family:"Azeret Mono",monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--rust);margin:0 0 6px;display:block}
+.risk h3{margin-bottom:7px}
+.risk p:last-child{margin-bottom:0}
+.fix{border-left:3px solid var(--green);background:color-mix(in srgb,var(--green-bg) 45%,transparent);
+  padding:11px 15px;margin:12px 0 0;border-radius:0 2px 2px 0;font-size:14.5px}
+.fix b{color:var(--green)}
+.note{border-left:3px solid var(--blue);background:color-mix(in srgb,var(--blue-bg) 50%,transparent);
+  padding:13px 17px;margin:0 0 18px;border-radius:0 2px 2px 0;font-size:15px}
+.note b{color:var(--blue)}
+
+/* code */
+pre{font-family:"Azeret Mono",ui-monospace,monospace;font-size:12.5px;line-height:1.66;
+  background:var(--code);border-radius:2px;padding:16px 18px;margin:0 0 16px;overflow-x:auto;color:var(--ink)}
+pre .c{color:var(--ink-3)}
+pre .b{color:var(--blue)}
+pre .r{color:var(--rust)}
+code{font-family:"Azeret Mono",monospace;font-size:.85em;background:var(--code);padding:1.5px 5px;border-radius:2px}
+
+/* tables */
+.tw{overflow-x:auto;border:1px solid var(--rule);border-radius:2px;background:var(--surface);margin:0 0 18px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{font-family:"Azeret Mono",monospace;font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500;background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+td.m{font-family:"Azeret Mono",monospace;font-size:12px;white-space:nowrap;color:var(--ink-3)}
+
+/* phases */
+.ph{display:grid;grid-template-columns:1fr;gap:0;border-top:2px solid var(--ink);margin:30px 0 0;padding-top:16px}
+@media(min-width:720px){.ph{grid-template-columns:80px 1fr;gap:24px}}
+.ph-n{font-family:Manrope,sans-serif;font-weight:800;font-size:2.4rem;line-height:.9;color:var(--blue);
+  font-variant-numeric:tabular-nums;letter-spacing:-.04em}
+.ph-meta{font-family:"Azeret Mono",monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);margin:6px 0 0;display:block}
+.ph-body h3{margin-bottom:8px;font-size:1.2rem}
+.ph-body ul{margin-bottom:10px}
+.gate{font-family:"Azeret Mono",monospace;font-size:12px;background:var(--surface-2);
+  padding:9px 13px;border-radius:2px;margin:10px 0 0;color:var(--ink-2)}
+.gate b{color:var(--blue);font-family:Manrope,sans-serif;font-weight:700;font-size:11px;
+  letter-spacing:.1em;text-transform:uppercase}
+
+/* decisions */
+.dec{background:var(--surface);border:1px solid var(--rule);border-top:3px solid var(--blue);
+  border-radius:2px;padding:20px 24px;margin:0 0 16px;box-shadow:var(--shadow)}
+.dec h3{margin-bottom:8px}
+.dec .rec{font-size:14.5px;color:var(--ink-2);border-top:1px solid var(--rule);padding-top:11px;margin-top:12px}
+.dec .rec b{color:var(--blue)}
+
+footer{border-top:1px solid var(--rule);margin-top:56px;padding-top:24px;
+  font-family:"Azeret Mono",monospace;font-size:11.5px;color:var(--ink-3);line-height:1.7}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="kicker">Workflow · Continual Learning Mechanism Stack</p>
+  <h1>Building CLMS</h1>
+  <p class="dek">A phased plan for the mechanism library, the flag system, and the measurement layer — plus six risks in the design as specified, and what the locked decisions (task-sequence stream, rented GPUs, 0.5B cap) change about the sizing.</p>
+</header>
+
+<section class="sec">
+  <span class="sec-tag">Read this first</span>
+  <h2>Six things to be aware of</h2>
+  <p>You asked what else you should know. These are in order of how much damage they do if left until later.</p>
+
+  <div class="risk">
+    <span class="rn">Risk 01 · blocks the experiment design</span>
+    <h3>"Every mechanism true or false" is 2<sup>N</sup> configurations</h3>
+    <p>With ~88 non-post-hoc mechanisms, independent on/off flags describe 2<sup>88</sup> runs. Even restricted to the 15 tier-1 mechanisms it's 32,768. That's not a sweep, it's a combinatorial explosion — and it's the single most common way projects like this stall.</p>
+    <p>What you actually want, and what the flag system should make easy, is a <strong>ladder</strong>: (a) controls with everything off, (b) <em>one</em> mechanism on at a time — N runs, this is the ablation that answers "what did each mechanism do", (c) a handful of curated stacks combining the winners, (d) a small factorial only over the top 3–4. That's roughly N + 12 runs instead of 2<sup>N</sup>.</p>
+    <div class="fix"><b>Design implication.</b> Keep the per-mechanism boolean exactly as you described — it's the right interface. But add a <code>--preset</code> that expands to a named run-set (<code>ablation</code>, <code>controls</code>, <code>stack_a</code>), so the common case is one flag, not eighty-eight.</div>
+  </div>
+
+  <div class="risk">
+    <span class="rn">Risk 02 · blocks every conclusion</span>
+    <h3>"All flags false" is a floor, not a baseline. You also need a ceiling.</h3>
+    <p>Turning everything off gives you sequential fine-tuning — the forgetting floor. On its own it only lets you say a mechanism is "better than nothing," which is true of almost everything and ranks nothing. To say a mechanism <em>works</em> you need the upper bound too: joint training on all tasks at once, which every serious paper here reports (iCaRL, van de Ven, DER all do).</p>
+    <p>With both, mechanisms become comparable on one number — how much of the gap they close:</p>
+<pre>          A(mechanism) − A(sequential FT)
+ρ(m) = ─────────────────────────────────────
+          A(joint training) − A(sequential FT)
+
+<span class="c">ρ = 0  no better than doing nothing
+ρ = 1  matches training on all data at once
+ρ &lt; 0  actively harmful — this happens more than you'd think</span></pre>
+    <div class="fix"><b>Three controls, not one.</b> Sequential FT (floor), joint training (ceiling), and independent per-task models (a second ceiling that isolates whether sharing helps at all). Build all three in phase 0, before any mechanism exists.</div>
+  </div>
+
+  <div class="risk">
+    <span class="rn">Risk 03 · silently invalidates results</span>
+    <h3>Continual-learning results are extremely high variance</h3>
+    <p>Single-seed CL numbers are close to meaningless — the plasticity paper ran 30 seeds, and the ordering of mechanisms routinely flips between seeds. Compounding it, <strong>task order</strong> changes results on the same mechanisms and same data.</p>
+    <div class="fix"><b>Protocol from day one.</b> Minimum 3 seeds per configuration, report mean ± std, and never rank two mechanisms whose intervals overlap. Fix one task order for the main sweep and re-run the top 3 on two additional orders. Budget for this at the start — it multiplies every run count on this page by 3.</div>
+  </div>
+
+  <div class="risk">
+    <span class="rn">Risk 04 · makes comparisons unfair</span>
+    <h3>Cost has to be a measured output, not a footnote</h3>
+    <p>A mechanism that "wins" by buffering 10% of the training data is not comparable to one that adds nothing. The survey is explicit that resource efficiency is part of the objective, not separate from it. Replay beats most architectural methods on raw accuracy while quietly storing data; memory layers add parameters; GPM adds per-layer SVDs.</p>
+    <div class="fix"><b>Every run logs five cost numbers:</b> added parameters, buffer bytes, extra FLOPs per step, wall-clock overhead per step, and peak memory delta. Then report ρ(m) alongside ρ(m) normalized by overhead. A mechanism that recovers 60% of the gap for 2% overhead beats one that recovers 70% for 3× the memory.</div>
+  </div>
+
+  <div class="risk">
+    <span class="rn">Risk 05 · costs a day the first time it happens</span>
+    <h3>The folder name isn't importable from Python</h3>
+    <p><code>Continual Learning Mechanism Stack (CLMS)</code> contains spaces and parentheses, so it can never be a Python package name — <code>import Continual Learning Mechanism Stack (CLMS)</code> is a syntax error. Same for the repo root, <code>Continual learning architecture</code>.</p>
+    <div class="fix"><b>Keep your folder names.</b> Put an importable package <em>inside</em>: <code>Continual Learning Mechanism Stack (CLMS)/clms/</code>, with a <code>pyproject.toml</code> at the repo root so <code>pip install -e .</code> makes <code>import clms</code> work from anywhere. Display name stays yours; the import path stays legal.</div>
+  </div>
+
+  <div class="risk">
+    <span class="rn">Risk 06 · produces confidently wrong results</span>
+    <h3>A broken mechanism looks exactly like a neutral one</h3>
+    <p>If EWC's penalty is computed but never added to the loss, or a gradient projection silently operates on a detached copy, the run completes cleanly and reports "no effect." You will conclude the mechanism doesn't help. This is the most dangerous failure mode in the whole project because it's invisible.</p>
+    <div class="fix"><b>Every module ships a self-test</b> asserting it actually changed something — loss differs from baseline, gradient norm changed, buffer is non-empty, parameter delta is non-zero. The harness runs all self-tests for enabled mechanisms on step 0 and refuses to start if one is inert.</div>
+  </div>
+</section>
+
+<section class="sec">
+  <span class="sec-tag">Locked</span>
+  <h2>Decisions, and what they change</h2>
+  <p><strong>Stream:</strong> task sequence with clean boundaries. <strong>Compute:</strong> vast.ai on demand, capped at 0.5B for the first run, scaling once the approach is proven. Four consequences.</p>
+
+  <div class="risk">
+    <span class="rn">Consequence 01 · needs a choice</span>
+    <h3>There is no 0.5B OLMo 2 checkpoint &mdash; and you don't want one</h3>
+    <p>OLMo 2 ships at 1B, 7B, 13B and 32B. Nothing at 0.5B. And a task-sequence benchmark normally <em>starts from a pretrained model</em> — that's how TRACE works — so "0.5B OLMo 2" means pretraining one yourself first, which is several hundred GPU-hours before a single CL experiment runs.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Option</th><th>Cost before phase 3</th><th>Trade</th></tr></thead>
+      <tbody>
+        <tr><td><strong>SmolLM2-360M checkpoint</strong></td><td class="m">~0 GPU-hours</td><td>Under your cap, modern arch, fully open recipe. Not OLMo 2, but the mechanism code is identical — only <code>on_model_build</code> differs.</td></tr>
+        <tr><td><strong>OLMo 2 1B checkpoint</strong></td><td class="m">~0 GPU-hours</td><td>The arch you want, real pretrained weights, published baselines. 2× your stated cap.</td></tr>
+        <tr><td><strong>Custom ~0.5B OLMo 2, pretrained</strong></td><td class="m">several hundred+</td><td>Exactly your spec. Expensive on rented GPUs, and it delays every result by weeks.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="fix"><b>Superseded &mdash; see diagnostics-suite.html.</b> Train from scratch, as originally intended, but run the ranking sweep at <strong>20&ndash;50M</strong> rather than 0.5B. Several mechanisms only exist if present at initialization, so a pretrained checkpoint would measure grafting damage instead of the mechanism. Scaling <em>down</em> is the unlock: minutes per run, the whole sweep in an afternoon, and 0.5B reserved for the winning stack.</div>
+  </div>
+
+  <div class="risk">
+    <span class="rn">Consequence 02 · check at the phase-0 gate</span>
+    <h3>TRACE's tasks may be too hard at 0.5B to show a gap</h3>
+    <p>TRACE was built to challenge <em>aligned 7B+ models</em> — its eight datasets span domain QA, multilingual, code generation and math reasoning. At 360M–500M, several of those may sit near chance both before and after training, which collapses the floor–ceiling gap and makes every mechanism look identical. That is precisely what the phase-0 gate is designed to catch.</p>
+    <div class="fix"><b>Have a fallback ready.</b> If the gap is too small, drop to a simpler sequence — split versions of standard classification tasks, where the floor–ceiling separation is large and well documented. You lose LLM realism and keep the mechanism ranking, which is what phase 3 is actually for.</div>
+  </div>
+
+  <div class="risk">
+    <span class="rn">Consequence 03 · build it in phase 0, not later</span>
+    <h3>Rented instances get interrupted</h3>
+    <p>vast.ai instances can vanish mid-run. A six-hour run killed at hour five with no resume is a total loss, and across ~50 runs that will happen more than once.</p>
+    <div class="fix"><b>Checkpoint-resume is a phase-0 requirement</b>, not a phase-4 convenience — and it has to cover mechanism state, not just model weights. An EWC Fisher matrix, a replay buffer, GPM's SVD bases and continual backprop's utility counters all need to survive a restart, or the resumed run is silently a different experiment. Add <code>state_dict()</code> / <code>load_state_dict()</code> to the <code>Mechanism</code> contract.</div>
+  </div>
+
+  <div class="risk">
+    <span class="rn">Consequence 04 · invisible variance</span>
+    <h3>Heterogeneous GPUs contaminate the comparison</h3>
+    <p>Rented hardware varies run to run. Different cards mean different numerics, different default matmul precision, sometimes different kernel paths — and that difference will show up in your results as though it were a mechanism effect. You already have seed variance to fight; you don't want a second uncontrolled source on top of it.</p>
+    <div class="fix"><b>Pin the GPU type for a whole sweep</b>, log the card, driver and torch version in every run directory, and treat a mid-sweep hardware change as grounds for re-running the affected configs. Set deterministic matmul precision explicitly rather than accepting the per-card default.</div>
+  </div>
+
+  <h4>Sizing the budget</h4>
+  <p>Don't estimate — measure. Before committing to phase 3, run <strong>one</strong> complete config end to end on the instance type you intend to rent, and time it. Multiply by (mechanisms × seeds + controls) and you have a real number instead of a guess, plus the information needed to decide whether the sweep runs at 360M or smaller. That single pilot run is the cheapest de-risking available on this whole page.</p>
+</section>
+
+<section class="sec">
+  <span class="sec-tag">Layout</span>
+  <h2>Repository structure</h2>
+  <p>Two packages: the model (which you fork and push) and the mechanisms (which import into it). They stay separate so the model code remains a clean, rebaseable copy of upstream.</p>
+<pre>Continual learning architecture/          <span class="c">repo root — push this</span>
+├── pyproject.toml                       <span class="c">pip install -e . → import clms, olmo2_cl</span>
+├── All PDF/                             <span class="c">papers (gitignore or LFS)</span>
+├── design/                              <span class="c">these planning docs</span>
+├── <span class="b">olmo2_cl/</span>                            <span class="c">vendored model — surface A edits live here</span>
+│   ├── VENDORED_FROM.md                 <span class="c">upstream commit + version, pinned</span>
+│   ├── modeling_olmo2.py
+│   ├── configuration_olmo2.py
+│   └── hooks.py                         <span class="c">injection points exposed to clms</span>
+├── <span class="b">Continual Learning Mechanism Stack (CLMS)/</span>
+│   └── <span class="b">clms/</span>                            <span class="c">← the importable package</span>
+│       ├── base.py                      <span class="c">Mechanism ABC, 7 hooks, self-test contract</span>
+│       ├── registry.py                  <span class="c">name → class; auto-generates CLI flags</span>
+│       ├── compose.py                   <span class="c">hook ordering + conflict validation</span>
+│       ├── architecture/                <span class="c">A  — memory_layer, kwta, moe, prompt_pool,</span>
+│       │                                <span class="c">     hypernet, fast_weights, cms, xdg</span>
+│       ├── losses/                      <span class="c">L  — ewc, si, mas, lwf, der, vcl</span>
+│       ├── optim/                       <span class="c">O  — gpm, ogd, agem, olora, nscl,</span>
+│       │                                <span class="c">     continual_backprop, shrink_perturb, redo</span>
+│       ├── memory/                      <span class="c">S  — reservoir, herding, gss, generative, knn</span>
+│       ├── stream/                      <span class="c">D  — replay_mix, lr_rewarm, rcl, consolidate</span>
+│       └── eval/                        <span class="c">metrics, scenarios, plasticity, flatness, cost</span>
+├── configs/                             <span class="c">one YAML per run; presets for run-sets</span>
+├── scripts/                             <span class="c">train.py, sweep.py, report.py</span>
+└── runs/                                <span class="c">checkpoints, logs, metric dumps (gitignore)</span></pre>
+  <div class="note"><b>On the model fork.</b> Vendor <code>modeling_olmo2.py</code> and <code>configuration_olmo2.py</code> rather than forking all of <code>transformers</code>, and record the exact upstream version in <code>VENDORED_FROM.md</code>. Without that record you can't tell your changes from upstream drift six months from now — and you will want to rebase at least once.</div>
+</section>
+
+<section class="sec">
+  <span class="sec-tag">The contract</span>
+  <h2>How a mechanism plugs in</h2>
+  <p>One base class, seven hooks, and three pieces of declared metadata that the harness uses to validate a config before spending a GPU-hour on it.</p>
+<pre><span class="b">class</span> Mechanism:
+    name        = "ewc"
+    surfaces    = ("L",)            <span class="c">which of A/L/O/S/D it touches</span>
+    <span class="r">conflicts   = ("frozen_backbone",)</span>   <span class="c">cannot co-run — hard error</span>
+    <span class="r">requires    = ("task_boundaries",)</span>   <span class="c">stream capabilities it needs</span>
+    order       = 50                <span class="c">deterministic hook ordering</span>
+
+    <span class="c"># --- the seven hooks ---</span>
+    def on_model_build(self, model, cfg):        <span class="c">A: swap/insert layers</span>
+    def on_batch(self, batch, step):             <span class="c">D: mix replay, reformat targets</span>
+    def compute_loss(self, model, batch, out, base_loss):  <span class="c">L: add terms</span>
+    def before_step(self, model):                <span class="c">O: project / mask / damp grads</span>
+    def after_step(self, model):                 <span class="c">O: reinit units, shrink+perturb</span>
+    def on_task_boundary(self, model, task_id):  <span class="c">Fisher, SVD bases, buffer resize</span>
+    def on_eval(self, model, task_id):           <span class="c">probes</span>
+
+    <span class="c"># --- required, see Risk 06 ---</span>
+    def self_test(self, model, batch) -> bool:   <span class="c">prove it changed something</span>
+    def cost_report(self) -> dict:               <span class="c">params, bytes, flops, ms, mem</span></pre>
+
+  <h4>Three validations that run before training starts</h4>
+  <ul>
+    <li><strong>Conflict check.</strong> Two enabled mechanisms naming each other in <code>conflicts</code> is a hard error with an explanation. The obvious case: a frozen backbone (F05) forbids weight movement, plasticity maintenance (F12) mandates it — they cannot co-run, and discovering that at hour three of a run is expensive.</li>
+    <li><strong>Capability check.</strong> A mechanism declaring <code>requires = ("task_boundaries",)</code> on a boundary-free stream is rejected. EWC, GPM, and iCaRL all need boundaries; DER, reservoir replay, and continual backprop don't. This distinction is easy to lose track of and produces meaningless numbers when violated.</li>
+    <li><strong>Ordering.</strong> When two mechanisms write the same hook the result depends on sequence — GPM projecting gradients before versus after continual backprop reinitializes units gives different models. <code>order</code> makes it deterministic and reviewable rather than dependent on dict iteration.</li>
+  </ul>
+</section>
+
+<section class="sec">
+  <span class="sec-tag">The knob</span>
+  <h2>Flag system</h2>
+  <p>Flags are generated from the registry, so adding a mechanism means adding one file — never editing an argument parser.</p>
+<pre><span class="c"># everything off — the forgetting floor</span>
+python scripts/train.py --config base.yaml --preset controls
+
+<span class="c"># one mechanism, with its own hyperparameters</span>
+python scripts/train.py --config base.yaml \
+    --mech.ewc.enabled true --mech.ewc.lambda 5000
+
+<span class="c"># the full single-mechanism ablation, 3 seeds each</span>
+python scripts/sweep.py --preset ablation --seeds 0,1,2
+
+<span class="c"># a curated stack</span>
+python scripts/train.py --config base.yaml --preset stack_replay_sparse</pre>
+<pre class="c"># configs/stack_replay_sparse.yaml
+mechanisms:
+  reservoir:      {enabled: true,  capacity: 5000}
+  der:            {enabled: true,  alpha: 0.5, beta: 0.5}
+  memory_layer:   {enabled: true,  slots: 512000, topk: 32, layer: 12}
+  sparse_ft:      {enabled: true,  t: 500, ranking: tfidf}
+  continual_bp:   {enabled: true,  rho: 1.0e-4, maturity: 100}
+  ewc:            {enabled: false}
+  gpm:            {enabled: false}</pre>
+  <div class="note"><b>Every run writes its fully-resolved config into <code>runs/&lt;id&gt;/config.yaml</code></b>, including defaults you never typed. Six months from now the only reliable record of what a run actually did is the file the run itself wrote.</div>
+</section>
+
+<section class="sec">
+  <span class="sec-tag">Measurement</span>
+  <h2>The metrics layer</h2>
+  <p>You flagged this as crucial and it is — it's also the part that has to exist <em>before</em> the mechanisms, because it's what turns a run into a result. Four groups.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Group</th><th>Metrics</th><th>Answers</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Retention</strong></td><td>AA, AIA, FM, BWT, FWT, Intransigence</td><td>Did it forget? Did learning new things help or hurt old ones?</td><td class="m">2302.00487</td></tr>
+        <tr><td><strong>Plasticity</strong></td><td>Dead-unit fraction, effective rank, mean weight magnitude, gradient norm</td><td>Can it still learn at all, or has it quietly frozen?</td><td class="m">2306.13812</td></tr>
+        <tr><td><strong>Geometry</strong></td><td>Fisher trace, loss sensitivity to Gaussian weight noise</td><td>Is the solution in a flat basin? Cheap predictor of future forgetting.</td><td class="m">2004.07211</td></tr>
+        <tr><td><strong>Cost</strong></td><td>Added params, buffer bytes, FLOPs/step, ms/step, peak memory</td><td>What did the retention actually cost?</td><td class="m">Risk 04</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Plus, if the stream involves an instruction-tuned model, the capability deltas from TRACE — general ability, instruction following, safety — because a mechanism can preserve task accuracy while destroying alignment, and task metrics alone won't show it.</p>
+
+  <h4>The one number that ranks mechanisms</h4>
+<pre>ρ(m)      = gap closed vs. the floor–ceiling span   <span class="c">see Risk 02</span>
+ρ_cost(m) = ρ(m) / (1 + overhead_fraction)
+
+<span class="c">report both, always, with mean ± std over ≥3 seeds.
+a mechanism only "wins" if its interval clears the next one's.</span></pre>
+
+  <h4>Evaluation cadence</h4>
+  <p>Evaluate on <em>every task seen so far</em> after every task — that's the full accuracy matrix <code>A[i][j]</code>, and every retention metric above is derived from it. Evaluating only on the current task is the most common way to accidentally measure nothing. Plasticity probes run on a fixed schedule during training, not just at boundaries, because plasticity loss is gradual and boundary-only sampling misses the shape of it.</p>
+</section>
+
+<section class="sec">
+  <span class="sec-tag">Sequence</span>
+  <h2>Phases</h2>
+  <p>Each phase has an exit gate. Don't start the next one until the gate passes — most of the failure modes above are caught by these gates.</p>
+
+  <div class="ph"><div><span class="ph-n">0</span><span class="ph-meta">Scaffold</span></div><div class="ph-body">
+    <h3>Instruments before mechanisms</h3>
+    <ul>
+      <li>Vendor <code>olmo2_cl/</code>, pin the upstream version, verify it loads a released checkpoint and trains one step</li>
+      <li><code>pyproject.toml</code> + the <code>clms</code> package skeleton so imports work</li>
+      <li><code>base.py</code>, <code>registry.py</code>, <code>compose.py</code> — the contract and its three validations</li>
+      <li>Full metrics layer including the cost accounting</li>
+      <li>The three controls: sequential FT, joint training, per-task independent</li>
+      <li>Seed and task-order protocol; the run-directory and config-dump convention</li>
+    </ul>
+    <div class="gate"><b>Gate</b> — the three controls run end to end on the chosen stream, at 3 seeds, and produce a floor and a ceiling that are clearly separated. If the gap is small, the stream is too easy and every mechanism will look identical.</div>
+  </div></div>
+
+  <div class="ph"><div><span class="ph-n">1</span><span class="ph-meta">Vertical slice</span></div><div class="ph-body">
+    <h3>One mechanism per surface, end to end</h3>
+    <p>Prove the contract on five cheap mechanisms before writing eighty. One per surface, chosen for implementation speed rather than importance:</p>
+    <ul>
+      <li><strong>L</strong> — EWC (diagonal Fisher, quadratic penalty)</li>
+      <li><strong>S+D</strong> — reservoir buffer + experience replay</li>
+      <li><strong>O</strong> — shrink-and-perturb (two lines, proves the optimizer hook)</li>
+      <li><strong>A</strong> — XdG random context gating (proves <code>on_model_build</code> without a large build)</li>
+      <li><strong>D</strong> — replay mix ratio + LR re-warming</li>
+    </ul>
+    <div class="gate"><b>Gate</b> — all five self-tests pass, flags demonstrably change the numbers, conflict and capability validation reject a deliberately bad config, and ρ is computable for each.</div>
+  </div></div>
+
+  <div class="ph"><div><span class="ph-n">2</span><span class="ph-meta">Build-out</span></div><div class="ph-body">
+    <h3>The tier-1 fifteen</h3>
+    <p>DER/DER++, LwF, online EWC, SI, GPM, O-LoRA, memory layers, sparse memory finetuning, neuron-specificity masking, L2P, LoRA, continual backprop, replay mix, persistent fast-weight state, CLS consolidation. Each with its self-test and cost report.</p>
+    <div class="gate"><b>Gate</b> — every tier-1 module passes self-test and reports cost. No mechanism enters the sweep without both.</div>
+  </div></div>
+
+  <div class="ph"><div><span class="ph-n">3</span><span class="ph-meta">Ablation</span></div><div class="ph-body">
+    <h3>One at a time, small model, three seeds</h3>
+    <p>~15 mechanisms × 3 seeds + controls ≈ 50 runs. Run this at the smallest model that still shows a clear floor–ceiling gap — 135M–360M, not 1B. The purpose is ranking, and ranking is preserved at small scale far more often than absolute numbers are.</p>
+    <div class="gate"><b>Gate</b> — a ranked table with confidence intervals, and an explicit list of mechanisms whose intervals overlap and therefore cannot be ordered.</div>
+  </div></div>
+
+  <div class="ph"><div><span class="ph-n">4</span><span class="ph-meta">Stacks</span></div><div class="ph-body">
+    <h3>Tier-2 build-out and curated combinations</h3>
+    <p>Add the ~30 tier-2 mechanisms. Then 6–10 hand-designed stacks based on phase-3 results, plus a small factorial over the top 3–4 to catch interactions. This is where the four-level memory hierarchy gets tested as a whole.</p>
+    <div class="gate"><b>Gate</b> — at least one stack beats the best single mechanism by more than the seed variance.</div>
+  </div></div>
+
+  <div class="ph"><div><span class="ph-n">5</span><span class="ph-meta">Scale</span></div><div class="ph-body">
+    <h3>Promote winners to 1B</h3>
+    <p>Only the top stack and its top 2–3 components. Re-run the full metric suite and check whether the small-scale ranking held — where it doesn't, that discrepancy is itself one of the more interesting results you'll get.</p>
+  </div></div>
+</section>
+
+<footer>
+  Plan only — no code written yet. Stream shape and compute model locked 2026-08-23. Post-hoc mechanisms (F08 merging, F11 ROME/MEMIT) excluded per your scope: ~88 of the ~95 registry entries remain, across 5 surfaces. Nothing here is pushed to git; all commits and pushes are yours.
+</footer>
+
+</div>

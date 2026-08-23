@@ -1,0 +1,31 @@
+# Baseline run configuration.
+# Anything omitted falls back to clms.config.BASE_CONFIG; the mechanisms block
+# is generated from the registry, so you only list what you change.
+
+run:
+  name: base
+  seed: 0
+  device: auto
+  out_dir: runs
+
+model:
+  size_preset: small      # nano | tiny | small | base | mid
+  vocab_size: 128
+  max_position_embeddings: 128
+
+stream:
+  tasks: [copy, reverse, sort, modadd23, kvrecall, induction]
+  batch_size: 32
+  steps_per_task: 400
+  eval_batches: 8
+  scenario: task_il       # task_il | class_il
+
+optim:
+  lr: 0.0003
+  weight_decay: 0.01
+  grad_clip: 1.0
+  warmup_steps: 50
+  rewarm_per_task: false
+
+probes:
+  enabled: true

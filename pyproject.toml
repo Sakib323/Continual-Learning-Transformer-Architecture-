@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clms"
+version = "0.1.0"
+description = "Continual Learning Mechanism Stack — mechanisms that plug into a transformer through one contract"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.1", "pyyaml>=6.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+# The display folder name contains spaces and parentheses, so it can never be a
+# Python package name. The importable package lives inside it and is mapped here.
+[tool.setuptools]
+package-dir = {"clms" = "Continual Learning Mechanism Stack (CLMS)/clms", "olmo2_cl" = "olmo2_cl"}
+packages = [
+    "clms",
+    "clms.mechanisms",
+    "clms.data",
+    "clms.eval",
+    "olmo2_cl",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

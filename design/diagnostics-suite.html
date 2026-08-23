@@ -1,0 +1,313 @@
+<title>Signature Probes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Epilogue:wght@700;800&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;1,400&family=Overpass+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --paper:#EFEFF3;
+  --surface:#FAFAFC;
+  --surface-2:#E1E1E9;
+  --ink:#15141C;
+  --ink-2:#403E4E;
+  --ink-3:#6E6C7E;
+  --rule:#D3D3DC;
+  --rule-2:#B4B3C0;
+  --violet:#5B3A9E;
+  --violet-bg:#E2DBF1;
+  --amber:#9A6300;
+  --amber-bg:#F0E5CC;
+  --green:#1A6A50;
+  --green-bg:#D7E9E3;
+  --red:#98304A;
+  --red-bg:#EFD9DF;
+  --code:#E5E5EC;
+  --shadow:0 1px 2px rgba(21,20,28,.05),0 12px 30px -24px rgba(21,20,28,.6);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D0C12;--surface:#16151E;--surface-2:#1F1E29;
+    --ink:#E7E6EE;--ink-2:#B5B3C2;--ink-3:#848294;
+    --rule:#272631;--rule-2:#3B3947;
+    --violet:#A992E8;--violet-bg:#1F1735;
+    --amber:#DCAE55;--amber-bg:#2C2311;
+    --green:#55BC9C;--green-bg:#0F2A24;
+    --red:#DE8399;--red-bg:#2E1620;
+    --code:#1A1922;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 14px 34px -26px #000;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D0C12;--surface:#16151E;--surface-2:#1F1E29;
+  --ink:#E7E6EE;--ink-2:#B5B3C2;--ink-3:#848294;
+  --rule:#272631;--rule-2:#3B3947;
+  --violet:#A992E8;--violet-bg:#1F1735;--amber:#DCAE55;--amber-bg:#2C2311;
+  --green:#55BC9C;--green-bg:#0F2A24;--red:#DE8399;--red-bg:#2E1620;
+  --code:#1A1922;--shadow:0 1px 2px rgba(0,0,0,.5),0 14px 34px -26px #000;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Hanken Grotesk","Helvetica Neue",sans-serif;font-size:16.5px;line-height:1.63;
+  -webkit-font-smoothing:antialiased}
+a{color:var(--violet);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--violet) 38%,transparent)}
+a:hover{border-bottom-color:var(--violet)}
+a:focus-visible{outline:2px solid var(--violet);outline-offset:3px;border-radius:2px}
+.wrap{max-width:1000px;margin:0 auto;padding:0 26px 120px}
+
+.mast{padding:58px 0 30px;border-bottom:1px solid var(--rule)}
+.kicker{font-family:"Overpass Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--violet);margin:0 0 18px;font-weight:500}
+h1{font-family:Epilogue,"Helvetica Neue",sans-serif;font-weight:800;
+  font-size:clamp(2.3rem,6.5vw,4rem);line-height:.98;letter-spacing:-.035em;
+  margin:0 0 20px;text-wrap:balance;max-width:14ch}
+.dek{font-size:clamp(1rem,1.9vw,1.16rem);color:var(--ink-2);max-width:66ch;margin:0}
+
+h2{font-family:Epilogue,sans-serif;font-weight:800;font-size:clamp(1.5rem,3.2vw,2.1rem);
+  letter-spacing:-.027em;line-height:1.07;margin:0 0 8px;text-wrap:balance}
+h3{font-family:Epilogue,sans-serif;font-weight:700;font-size:1.13rem;letter-spacing:-.014em;margin:0 0 6px}
+h4{font-family:"Overpass Mono",monospace;font-size:10px;letter-spacing:.17em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:600;margin:24px 0 9px}
+.sec{padding:52px 0 0}
+.sec-tag{font-family:"Overpass Mono",monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 11px;display:block;font-weight:500}
+p{margin:0 0 14px;max-width:71ch}
+ul,ol{margin:0 0 15px;padding-left:20px}
+li{margin:0 0 8px;max-width:69ch}
+li::marker{color:var(--violet)}
+strong{font-weight:600}
+
+.correct{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--green);
+  border-radius:2px;padding:22px 26px;margin:0 0 22px;box-shadow:var(--shadow)}
+.correct h3{margin-bottom:8px}
+.correct p:last-child{margin-bottom:0}
+.note{border-left:3px solid var(--violet);background:color-mix(in srgb,var(--violet-bg) 45%,transparent);
+  padding:13px 17px;margin:0 0 18px;border-radius:0 2px 2px 0;font-size:15px}
+.note b{color:var(--violet)}
+.warn{border-left:3px solid var(--red);background:color-mix(in srgb,var(--red-bg) 45%,transparent);
+  padding:13px 17px;margin:0 0 18px;border-radius:0 2px 2px 0;font-size:15px}
+.warn b{color:var(--red)}
+
+pre{font-family:"Overpass Mono",ui-monospace,monospace;font-size:12.5px;line-height:1.68;
+  background:var(--code);border-radius:2px;padding:15px 18px;margin:0 0 16px;overflow-x:auto;color:var(--ink)}
+pre .c{color:var(--ink-3)}
+pre .v{color:var(--violet)}
+code{font-family:"Overpass Mono",monospace;font-size:.85em;background:var(--code);padding:1.5px 5px;border-radius:2px}
+
+.tw{overflow-x:auto;border:1px solid var(--rule);border-radius:2px;background:var(--surface);margin:0 0 20px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:680px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{font-family:"Overpass Mono",monospace;font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:600;background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+td.m,th.m{font-family:"Overpass Mono",monospace;font-size:12px;white-space:nowrap;color:var(--ink-3)}
+td.pid{font-family:"Overpass Mono",monospace;font-size:12px;color:var(--violet);font-weight:600;white-space:nowrap}
+tr.hi td{background:color-mix(in srgb,var(--violet-bg) 42%,transparent)}
+.dir{font-family:"Overpass Mono",monospace;font-weight:600;font-size:12.5px;white-space:nowrap}
+.dir.up{color:var(--green)}
+.dir.dn{color:var(--red)}
+
+/* probe cards */
+.pgrp{border-top:2px solid var(--ink);padding-top:14px;margin:34px 0 0}
+.pgrp-h{display:flex;align-items:baseline;gap:11px;flex-wrap:wrap;margin-bottom:4px}
+.pgrp-h .gid{font-family:"Overpass Mono",monospace;font-size:11.5px;color:var(--violet);font-weight:600;letter-spacing:.09em}
+.pgrp-h h3{margin:0;font-size:1.16rem}
+.pgrp-h .gn{font-family:"Overpass Mono",monospace;font-size:10.5px;color:var(--ink-3);margin-left:auto;letter-spacing:.09em}
+.probe{border-left:2px solid var(--rule-2);padding:0 0 2px 18px;margin:18px 0 0}
+.probe-t{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:5px}
+.probe-t .pn{font-family:"Overpass Mono",monospace;font-size:11px;color:var(--violet);font-weight:600}
+.probe-t h4{margin:0;font-family:Epilogue,sans-serif;font-size:1rem;font-weight:700;
+  text-transform:none;letter-spacing:-.01em;color:var(--ink)}
+.probe p{font-size:14.8px;margin-bottom:9px}
+.probe pre{font-size:12px;margin-bottom:10px}
+
+.ladder{display:flex;flex-direction:column;gap:9px;margin:20px 0 22px}
+.rung{display:grid;grid-template-columns:1fr;gap:6px;border:1px solid var(--rule);border-radius:3px;padding:14px 17px;background:var(--surface)}
+@media(min-width:720px){.rung{grid-template-columns:96px 150px 1fr;gap:18px;align-items:center}}
+.rung.now{border-left:3px solid var(--green);background:color-mix(in srgb,var(--green-bg) 32%,var(--surface))}
+.rung .rp{font-family:"Overpass Mono",monospace;font-size:12.5px;font-weight:600;color:var(--violet)}
+.rung .rn{font-family:Epilogue,sans-serif;font-weight:700;font-size:14.5px}
+.rung .rd{font-size:14px;color:var(--ink-2);line-height:1.48}
+
+footer{border-top:1px solid var(--rule);margin-top:56px;padding-top:24px;
+  font-family:"Overpass Mono",monospace;font-size:11.5px;color:var(--ink-3);line-height:1.7}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="kicker">Evaluation design · CLMS</p>
+  <h1>Signature Probes</h1>
+  <p class="dek">You're right about training from scratch, and right that internal diagnostics beat a behavioural benchmark at this stage. Here's the correction to my earlier advice, and a probe suite built on one principle: every mechanism family claims a specific internal effect, so measure that effect directly rather than inferring it from accuracy.</p>
+</header>
+
+<section class="sec">
+  <span class="sec-tag">Correction</span>
+  <h2>From scratch is the right call</h2>
+
+  <div class="correct">
+    <h3>I was optimizing for the wrong thing</h3>
+    <p>I pushed pretrained checkpoints because I was thinking about LLM realism — matching how models actually get updated in practice. That's the phase-5 concern, not the phase-3 one. For <em>ranking mechanisms</em>, a pretrained checkpoint is actively worse, for three reasons I should have led with:</p>
+    <ul>
+      <li><strong>Several mechanisms only exist if present at initialization.</strong> Memory layers, k-WTA sparsity, XdG gating, MoE routing, CMS frequency levels, sparse weight masks — these are architectural priors that shape <em>what gets learned</em>. Graft them onto a finished model and you measure grafting damage plus mechanism, not the mechanism.</li>
+      <li><strong>A checkpoint has seen unknown data.</strong> When you measure forgetting on task 1, you can't tell whether the model already knew it. From scratch, you own the entire data history — which is the exact property I called decisive about OLMo 2's openness, and you get it for free by pretraining yourself.</li>
+      <li><strong>The classic literature does it this way.</strong> EWC, SI, iCaRL, GPM, van de Ven's three scenarios, continual backprop — nearly all of it ran on small networks trained from scratch. van de Ven used MLPs on MNIST. Dohare used small ConvNets over 800 tasks. They weren't compromising; small-from-scratch is the correct instrument for this question.</li>
+    </ul>
+    <p>So: initialize from OLMo 2 source, inject mechanisms at construction, train from random weights. That was the right plan.</p>
+  </div>
+
+  <div class="note"><b>But go much smaller than 0.5B.</b> The real unlock here is scaling <em>down</em>, not up. You don't need a good language model to rank continual-learning mechanisms — you need one that demonstrably learns tasks and demonstrably forgets them. That happens at 20–50M parameters, where a full task sequence trains in minutes and the whole 50-run sweep fits in an afternoon of rented time. 0.5B for the ranking sweep would buy you nothing except a slower answer.</div>
+
+  <h4>The size ladder</h4>
+  <div class="ladder">
+    <div class="rung now">
+      <span class="rp">~20–50M</span><span class="rn">Ranking sweep</span>
+      <span class="rd">OLMo 2 arch, small config, from scratch. Phases 1–4. Minutes per run, so 3 seeds × 15 mechanisms is trivial. This is where you learn which mechanisms work.</span>
+    </div>
+    <div class="rung">
+      <span class="rp">~150M</span><span class="rn">Rank confirmation</span>
+      <span class="rd">Does the small-scale ordering hold? Run the top 5 plus controls. Where the ranking shifts, that shift is itself a result worth reporting.</span>
+    </div>
+    <div class="rung">
+      <span class="rp">~0.5B</span><span class="rn">Your target</span>
+      <span class="rd">The winning stack only. Real pretraining budget, real language modelling, the model you actually wanted to build.</span>
+    </div>
+    <div class="rung">
+      <span class="rp">1B+</span><span class="rn">External validity</span>
+      <span class="rd">TRACE and the LLM capability deltas come back here — general ability, instruction following, safety. This is where behavioural benchmarks earn their cost.</span>
+    </div>
+  </div>
+  <p>Same arch code at every rung. Moving up is a config change, because mechanisms plug in through the contract rather than through the model.</p>
+</section>
+
+<section class="sec">
+  <span class="sec-tag">The organizing principle</span>
+  <h2>Every family has a signature</h2>
+  <p>Accuracy tells you <em>that</em> forgetting happened. It never tells you why, and two mechanisms can reach identical accuracy by completely different internal routes — which means an accuracy-only comparison can't tell you what to combine, what to fix, or what's silently broken.</p>
+  <p>But each mechanism family makes a specific, falsifiable claim about the network's internals. Sparsity claims low activation overlap. Localization claims concentrated updates. Gradient projection claims orthogonal subspaces. Plasticity maintenance claims preserved rank. Merging claims low loss barriers. <strong>Measure the claimed quantity directly</strong>, and you learn whether the mechanism is doing what its paper says — independently of whether that helps.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Family</th><th>Its claim about internals</th><th class="m">Probe</th><th>Expected</th></tr></thead>
+      <tbody>
+        <tr class="hi"><td><strong>F04 Sparsity</strong></td><td>Tasks activate disjoint units, so they don't interfere</td><td class="m">A4</td><td><span class="dir dn">overlap ↓</span></td></tr>
+        <tr class="hi"><td><strong>F04 Localization</strong></td><td>Updates concentrate in few parameters</td><td class="m">B2</td><td><span class="dir dn">concentration ↓</span></td></tr>
+        <tr><td><strong>F03 Gradient projection</strong></td><td>New-task gradients lie orthogonal to old subspaces</td><td class="m">C2</td><td><span class="dir up">principal angles ↑</span></td></tr>
+        <tr><td><strong>F12 Plasticity</strong></td><td>Rank and unit utilization stay high over the stream</td><td class="m">A1, B3</td><td><span class="dir up">eff. rank flat</span></td></tr>
+        <tr><td><strong>F02 Regularization</strong></td><td>High-importance parameters move less</td><td class="m">B1</td><td><span class="dir dn">Δθ on high-Fisher ↓</span></td></tr>
+        <tr><td><strong>F01 Replay</strong></td><td>Old and new gradients stop conflicting</td><td class="m">C1</td><td><span class="dir up">cosine ↑</span></td></tr>
+        <tr><td><strong>F03 Flat minima</strong></td><td>Solution sits in a wide basin</td><td class="m">C3</td><td><span class="dir dn">Fisher trace ↓</span></td></tr>
+        <tr><td><strong>F05 Frozen backbone</strong></td><td>Backbone representations don't move at all</td><td class="m">A2</td><td><span class="dir up">CKA ≈ 1.0</span></td></tr>
+        <tr><td><strong>F10 Fast weights</strong></td><td>State carries information across boundaries</td><td class="m">D2</td><td><span class="dir dn">logit drift ↓</span></td></tr>
+        <tr><td><strong>F13 CLS</strong></td><td>Fast and slow components diverge in update rate</td><td class="m">B1 per-group</td><td><span class="dir up">rate ratio ↑</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="warn"><b>This also solves the invisible-failure problem properly.</b> A self-test proves a mechanism ran. A signature probe proves it did <em>the thing it claims</em>. If EWC is enabled and displacement on high-Fisher parameters doesn't drop, EWC is broken — and you know that immediately, regardless of what accuracy says. Make the signature check an automatic assertion in every run, not something you look at afterwards.</div>
+</section>
+
+<section class="sec">
+  <span class="sec-tag">The suite</span>
+  <h2>Seventeen probes, four groups</h2>
+
+  <!-- A -->
+  <div class="pgrp"><div class="pgrp-h"><span class="gid">GROUP A</span><h3>Representation — what the network encodes</h3><span class="gn">5 probes</span></div></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">A1</span><h4>Effective rank of hidden activations</h4></div>
+    <p>Collapse of representational dimensionality is the clearest signature of plasticity loss. Compute per layer on a fixed probe batch, tracked over the whole stream.</p>
+<pre>H = activations (n × d) ;  σ = singular values of H
+p_i = σ_i / Σσ_j
+eff_rank = exp( −Σ p_i log p_i )      <span class="c">entropy of the spectrum</span></pre></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">A2</span><h4>Representation drift (linear CKA)</h4></div>
+    <p>How far did the representation of <em>old</em> data move while learning new tasks? Evaluate on task-1 inputs, comparing activations before and after task k. This is the mechanistic core of forgetting.</p>
+<pre>CKA(X,Y) = ‖YᵀX‖²_F / ( ‖XᵀX‖_F · ‖YᵀY‖_F )
+<span class="c">1.0 = unchanged, 0 = unrelated. Report per layer — drift is rarely uniform.</span></pre></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">A3</span><h4>Cross-task representation overlap</h4></div>
+    <p>CKA between task-a and task-b activations. High overlap predicts interference; it's the quantity that decides whether sharing helps or hurts on this particular task sequence.</p></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">A4</span><h4>Activation overlap (Jaccard)</h4></div>
+    <p>The direct test of the sparsity argument. Fraction of units co-active across two tasks, over units active on either.</p>
+<pre>act_a = { i : mean|h_i| on task a &gt; τ }
+overlap = |act_a ∩ act_b| / |act_a ∪ act_b|
+<span class="c">sparsity mechanisms must drive this down; if they don't, they aren't working</span></pre></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">A5</span><h4>Dead and dormant unit fraction</h4></div>
+    <p>Units whose activation is ~0 across the probe set. One of the three correlates of plasticity loss, and cheap enough to log every few hundred steps.</p></div>
+
+  <!-- B -->
+  <div class="pgrp"><div class="pgrp-h"><span class="gid">GROUP B</span><h3>Parameters — what actually moved</h3><span class="gn">4 probes</span></div></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">B1</span><h4>Displacement map</h4></div>
+    <p>‖θ_after − θ_before‖ per layer and per parameter group, after each task. Cross-reference against Fisher importance to test the regularization family directly, and split by parameter group to test the CLS claim that fast and slow components update at genuinely different rates.</p></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">B2</span><h4>Update concentration</h4></div>
+    <p>The measurable form of "localized updates." What fraction of parameters accounts for 90% of total displacement? This is the quantity the sparse-memory result is really about.</p>
+<pre>d = sort( |Δθ| , descending )
+conc90 = min{ k : Σ_{i≤k} d_i ≥ 0.9 · Σ d } / |θ|
+<span class="c">full finetuning ≈ 0.5+ ; sparse mechanisms should reach 1e-3 or below</span></pre></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">B3</span><h4>Weight magnitude growth</h4></div>
+    <p>Mean |θ| per layer over the stream. The third plasticity correlate — and an early warning that fires long before accuracy degrades.</p></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">B4</span><h4>Layer-wise forgetting attribution</h4></div>
+    <p>Which layers actually cause the forgetting? After learning task k, restore one layer at a time to its task-1 values and re-measure task-1 accuracy. The layer whose restoration recovers the most is where forgetting lives — and that tells you where to <em>put</em> a mechanism, not just whether it worked.</p></div>
+
+  <!-- C -->
+  <div class="pgrp"><div class="pgrp-h"><span class="gid">GROUP C</span><h3>Gradients &amp; geometry — why it moved</h3><span class="gn">4 probes</span></div></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">C1</span><h4>Gradient interference</h4></div>
+    <p>Cosine between old-task and new-task gradients at the current parameters. Negative means direct conflict — every step on the new task actively damages the old one. This is the quantity GEM, A-GEM and MER all target, so measuring it tells you whether they're earning their cost.</p>
+<pre>interference = ⟨g_old , g_new⟩ / (‖g_old‖ · ‖g_new‖)</pre></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">C2</span><h4>Gradient subspace angles</h4></div>
+    <p>GPM's entire premise, made measurable. Take the top-k gradient subspaces for two tasks, compute principal angles; near-90° means the tasks occupy separable directions and projection methods should work well here.</p>
+<pre>U_a, U_b = top-k left singular vectors of each task's gradient matrix
+angles = arccos( singular values of U_aᵀ U_b )</pre></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">C3</span><h4>Sharpness</h4></div>
+    <p>Trace of the empirical Fisher, plus loss increase under Gaussian weight perturbation at several scales. A cheap forward-looking predictor: flatter solutions after task k tend to forget less at task k+1.</p></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">C4</span><h4>Loss barrier between task solutions</h4></div>
+    <p>Interpolate between the task-a and task-b parameter vectors and measure the loss bump. A low barrier means the solutions share a basin — which predicts that merging would have worked, and tells you something real about whether the tasks conflict at all.</p>
+<pre>barrier = max_{α∈[0,1]} L(αθ_a + (1−α)θ_b) − [αL(θ_a) + (1−α)L(θ_b)]</pre></div>
+
+  <!-- D -->
+  <div class="pgrp"><div class="pgrp-h"><span class="gid">GROUP D</span><h3>Behaviour — the outer layer</h3><span class="gn">4 probes</span></div></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">D1</span><h4>Full accuracy matrix</h4></div>
+    <p><code>A[i][j]</code> = accuracy on task j after training through task i. Every retention metric — AA, AIA, FM, BWT, FWT, intransigence — derives from this one object. Evaluating only the current task is the most common way to accidentally measure nothing.</p></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">D2</span><h4>Logit drift</h4></div>
+    <p>KL divergence of outputs on a frozen probe set, before versus after each task. Catches functional change that accuracy hides — a model can stay correct while its confidence structure is destroyed, and that degradation shows up as accuracy loss one task later.</p></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">D3</span><h4>Per-example forgetting events</h4></div>
+    <p>Which specific examples flip correct → incorrect, and do they cluster? Clustered forgetting means a coherent capability was lost; diffuse forgetting means general degradation. Different problems, different fixes, invisible in aggregate accuracy.</p></div>
+
+  <div class="probe"><div class="probe-t"><span class="pn">D4</span><h4>Three-scenario evaluation</h4></div>
+    <p>Run the same stream under Task-IL, Domain-IL and Class-IL. Methods that look strong with task identity provided routinely collapse without it — that gap is one of the most informative single numbers you can produce, and it costs only evaluation time.</p></div>
+</section>
+
+<section class="sec">
+  <span class="sec-tag">The stream</span>
+  <h2>What to train on instead of TRACE</h2>
+  <p>Skipping TRACE for now is right — it was built to challenge aligned 7B+ models, and at 20–50M its tasks would sit near chance on both sides of training. You need a task sequence with a large, reliable floor–ceiling gap at small scale.</p>
+  <p><strong>Synthetic algorithmic tasks</strong> are the strongest fit, and they're what makes the internal probes interpretable:</p>
+  <ul>
+    <li><strong>Exact ground truth</strong> — accuracy is unambiguous, no metric ambiguity to argue about</li>
+    <li><strong>Tunable overlap</strong> — you can dial how much two tasks share, which turns A3/A4 into a controlled experiment instead of an observation</li>
+    <li><strong>Minutes to train</strong> — the whole reason the sweep is affordable</li>
+    <li><strong>Known internal structure</strong> — when a probe moves you can often say what it means, which is rarely true on natural text</li>
+  </ul>
+  <p>A reasonable sequence: modular arithmetic at several moduli, copy, reverse, sort, key–value recall, induction. Then a second, more realistic sequence — split language modelling over disjoint domains of a small corpus — as the bridge toward TRACE.</p>
+  <div class="note"><b>Build the fixed probe set first.</b> A frozen, never-trained-on batch from every task, held constant for the entire project. Almost every probe above is defined relative to it, and if it changes mid-project the numbers stop being comparable across runs.</div>
+</section>
+
+<footer>
+  Supersedes the checkpoint recommendation in build-workflow.html §Consequence 01. Probe definitions are implementable as written; the mapping from family to signature probe is a design proposal, not a published result — expect to revise a few once you see real traces.
+</footer>
+
+</div>
