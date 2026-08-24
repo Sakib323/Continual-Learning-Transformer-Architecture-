@@ -155,6 +155,12 @@ def train(cfg: dict) -> dict:
 
     out_dir = Path(rc["out_dir"]) / rc["name"] / f"seed{rc['seed']}"
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    result_path = out_dir / "result.json"
+    if rc.get("skip_completed", True) and result_path.exists():
+        print(f"[clms] {rc['name']} seed{rc['seed']} already complete — skipping")
+        return json.loads(result_path.read_text())
+
     cfgmod.dump(cfg, out_dir / "config.yaml")
 
     print(f"[clms] device={device}  mode={mode}  params={model.num_parameters():,}")
@@ -172,13 +178,13 @@ def train(cfg: dict) -> dict:
     optimizer = build_optimizer(model, oc)
     history: list[dict] = []
     t_start = time.time()
+    ckpt_path = out_dir / "checkpoint.pt"
 
     # --- resume ---------------------------------------------------------
     # Rented instances get interrupted. A resumed run whose Fisher matrix or
     # replay buffer was lost is silently a different experiment, so mechanism
     # state is restored alongside the model.
     start_task = 0
-    ckpt_path = out_dir / "checkpoint.pt"
     if rc.get("resume", True) and ckpt_path.exists():
         ck = torch.load(ckpt_path, map_location=device, weights_only=False)
         model.load_state_dict(ck["model"])
@@ -334,7 +340,11 @@ def train(cfg: dict) -> dict:
         "torch": torch.__version__,
         "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
     }
-    (out_dir / "result.json").write_text(json.dumps(result, indent=2, default=str))
+    result_path.write_text(json.dumps(result, indent=2, default=str))
+
+    # the checkpoint has served its purpose once the result is on disk
+    if not rc.get("keep_checkpoint", False) and ckpt_path.exists():
+        ckpt_path.unlink()
 
     m = result["metrics"]
     print(f"\n[clms] AA={m['AA']:.4f}  FM={m['FM']:.4f}  BWT={m['BWT']:+.4f}")

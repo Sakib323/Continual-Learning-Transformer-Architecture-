@@ -2,7 +2,8 @@
 # Provision a fresh vast.ai instance and verify the stack before spending money.
 #
 #   ssh -p <PORT> root@<HOST>
-#   git clone <your-repo> && cd "Continual learning architecture"
+#   git clone https://github.com/Sakib323/Continual-Learning-Transformer-Architecture-.git
+#   cd Continual-Learning-Transformer-Architecture-
 #   bash scripts/vast_setup.sh
 #
 # Ends with a pilot timing run, so the last thing you see is what the sweep will

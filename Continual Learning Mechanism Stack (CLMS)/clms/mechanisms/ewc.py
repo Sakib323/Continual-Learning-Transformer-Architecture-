@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from ..base import CostReport, Mechanism, RunContext, SignatureCheck, to_cpu_tree
 from ..registry import register
@@ -36,6 +37,28 @@ class EWC(Mechanism):
         "online": True,       # single decayed Fisher vs one per task
         "gamma": 0.95,        # decay for the online variant
         "fisher_batches": 8,  # batches used to estimate Fisher at a boundary
+        "fisher_type": "model",   # "model" (true Fisher) | "empirical"
+        "normalize": True,        # rescale each task's Fisher to unit mean
+        #
+        # Absolute Fisher magnitude is not meaningful here and collapses toward
+        # zero on deterministic tasks the model has memorised — a network with a
+        # near-singular likelihood has near-zero curvature in the directions it
+        # actually uses. Measured at ~1e-9 even with the model Fisher.
+        #
+        # What EWC needs is *relative* importance across parameters, so each
+        # task's Fisher is rescaled to unit mean and lambda becomes a scale-free
+        # strength knob instead of something that must be retuned per task.
+        #
+        # This choice is not cosmetic. The *empirical* Fisher squares gradients
+        # of the loss on ground-truth labels. Once the model has solved a task
+        # those gradients go to ~0, the Fisher collapses to ~0 everywhere, and
+        # the penalty becomes negligible at *any* lambda — measured here at
+        # 1e-10 after the synthetic tasks converge to ~100%.
+        #
+        # The *model* Fisher samples labels from the network's own predictive
+        # distribution and differentiates log p(y_hat | x). That stays
+        # non-degenerate at convergence because it measures curvature of the
+        # likelihood rather than residual error. This is what EWC specifies.
     }
 
     def __init__(self, **kw):
@@ -46,6 +69,7 @@ class EWC(Mechanism):
         # reference the parameters have actually had a chance to move away from.
         self.prev_anchor: dict[str, torch.Tensor] = {}
         self._penalty_seen = 0.0
+        self._fisher_mean = 0.0
 
     # ------------------------------------------------------------------
     def compute_loss(self, model, batch, out, base_loss, ctx) -> torch.Tensor | None:
@@ -70,6 +94,26 @@ class EWC(Mechanism):
                 "the trainer supplies it"
             )
         new_fisher = self._estimate_fisher(model, loader, ctx.device)
+
+        # A collapsed Fisher makes the penalty negligible at every lambda, and
+        # the run then reports "EWC does not help" when EWC never ran in any
+        # meaningful sense. Surface it rather than letting it look like a result.
+        total = sum(float(f.sum()) for f in new_fisher.values())
+        n_entries = sum(f.numel() for f in new_fisher.values())
+        raw_mean = total / max(n_entries, 1)
+
+        if self.params["normalize"] and raw_mean > 0:
+            for n in new_fisher:
+                new_fisher[n] = new_fisher[n] / raw_mean
+
+        self._fisher_mean = raw_mean
+        if raw_mean < 1e-12 and not self.params["normalize"]:
+            print(
+                f"[ewc] WARNING: mean Fisher is {self._fisher_mean:.2e} after task "
+                f"{task_id}. The penalty will be negligible at any lambda. With "
+                f"fisher_type='empirical' this is expected once a task is solved; "
+                f"switch to fisher_type='model', or leave normalize=True."
+            )
         if self.params["online"] and self.fisher:
             g = self.params["gamma"]
             for n, f in new_fisher.items():
@@ -90,16 +134,37 @@ class EWC(Mechanism):
         n_used = 0
         was_training = model.training
         model.eval()
+        use_model_fisher = self.params["fisher_type"] == "model"
+
         for i, batch in enumerate(batches):
             if i >= self.params["fisher_batches"]:
                 break
+            ids = batch["input_ids"].to(device)
+            labels = batch["labels"].to(device)
             model.zero_grad(set_to_none=True)
-            out = model(batch["input_ids"].to(device), labels=batch["labels"].to(device))
-            out["loss"].backward()
+
+            if use_model_fisher:
+                logits = model(ids)["logits"][:, :-1]
+                target_mask = labels[:, 1:] != -100
+                if not target_mask.any():
+                    continue
+                logp = F.log_softmax(logits, dim=-1)
+                # sample y_hat ~ p(y|x) from the model itself
+                with torch.no_grad():
+                    sampled = torch.multinomial(
+                        logp.exp().reshape(-1, logp.shape[-1]), 1
+                    ).reshape(logp.shape[:-1])
+                picked = logp.gather(-1, sampled.unsqueeze(-1)).squeeze(-1)
+                loss = -(picked * target_mask).sum() / target_mask.sum()
+            else:
+                loss = model(ids, labels=labels)["loss"]
+
+            loss.backward()
             for n, p in model.named_parameters():
                 if p.requires_grad and p.grad is not None:
                     fisher[n] += (p.grad.detach() ** 2).cpu()
             n_used += 1
+
         model.zero_grad(set_to_none=True)
         if was_training:
             model.train()
@@ -160,7 +225,9 @@ class EWC(Mechanism):
         n = sum(f.numel() for f in self.fisher.values())
         return CostReport(
             buffer_bytes=n * 4 * 2,  # fisher + anchor, fp32
-            notes={"fisher_entries": n, "last_penalty": self._penalty_seen},
+            notes={"fisher_entries": n, "last_penalty": self._penalty_seen,
+                   "fisher_mean": self._fisher_mean,
+                   "fisher_type": self.params["fisher_type"]},
         )
 
     # ------------------------------------------------------------------

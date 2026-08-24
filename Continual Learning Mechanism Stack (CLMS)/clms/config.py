@@ -28,6 +28,15 @@ BASE_CONFIG: dict[str, Any] = {
         "device": "auto",
         "out_dir": "runs",
         "resume": True,
+        # A checkpoint exists to survive an interrupted instance. Once a run has
+        # written result.json there is nothing left to resume, and keeping the
+        # model plus optimizer state for every run costs ~280MB each at 24M
+        # params — roughly 40GB across a 141-run tuned sweep, which fills a
+        # rented instance mid-sweep.
+        "keep_checkpoint": False,
+        # Skip a configuration whose result.json already exists. Makes an
+        # interrupted sweep resumable at the sweep level, not just per run.
+        "skip_completed": True,
     },
     "model": {
         "size_preset": "small",

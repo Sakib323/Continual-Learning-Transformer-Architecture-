@@ -3,6 +3,8 @@
 Continual-learning mechanisms that plug into an OLMo 2 style transformer through
 a single contract, so comparing them is a config change rather than a rewrite.
 
+**Repository:** https://github.com/Sakib323/Continual-Learning-Transformer-Architecture-
+
 ```
 olmo2_cl/                                  OLMo 2 architecture, from scratch
 Continual Learning Mechanism Stack (CLMS)/
@@ -179,6 +181,30 @@ not do the internal thing its paper claims, so the number reflects a
 misconfiguration rather than the method. Fix the setting and re-run before
 concluding anything.
 
+#### A worked example of why this matters
+
+The first tuned sweep ran EWC at four values of lambda. All four scored rho ~ 0,
+and all four reported `B1:FAIL` — high-Fisher parameters were moving as much as
+low-Fisher ones. Accuracy alone would have concluded "EWC does not help on this
+benchmark." The signature said something more specific: EWC was never applying
+pressure at all.
+
+Two causes, both real:
+
+1. The Fisher was the *empirical* one — squared gradients of the loss on
+   ground-truth labels. Once a task is solved those gradients vanish, so the
+   Fisher collapses and no lambda can recover it. Measured at 1e-11.
+2. Switching to the *model* Fisher (sampling from the network's own predictive
+   distribution) helped by ~1000x but still landed at ~1e-9, because a network
+   that has memorised a deterministic task has near-zero likelihood curvature
+   in the directions it uses.
+
+The fix is normalising each task's Fisher to unit mean, which is what makes
+lambda scale-free. `B1` passes afterwards, and lambda finally controls something.
+
+Both knobs are exposed (`fisher_type`, `normalize`) so the comparison is
+reproducible rather than buried in a commit.
+
 ## Model
 
 `olmo2_cl` is an architecture-faithful OLMo 2 reimplementation: reordered norm
@@ -202,16 +228,58 @@ mechanism.
 
 ## Working on vast.ai
 
+One scripted path, which ends by telling you what your sweep will cost on the
+card you just rented:
+
 ```bash
-# on the instance
-git clone <your-repo> && cd "Continual learning architecture"
+git clone https://github.com/Sakib323/Continual-Learning-Transformer-Architecture-.git
+cd Continual-Learning-Transformer-Architecture-
+bash scripts/vast_setup.sh
+```
+
+`vast_setup.sh` creates the venv, installs the package editable, **fails loudly
+if CUDA is missing** rather than silently billing you for a CPU run, executes the
+contract tests and a nano smoke run, then reports pilot timings.
+
+Manual equivalent:
+
+```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e .
-python train.py --preset control_sequential --set model.size_preset=small
+pip install -e .          # makes `import clms` / `import olmo2_cl` work anywhere
+python train.py --list
 ```
 
 VS Code: Remote-SSH to the instance, open the repo folder, select `.venv` as the
 interpreter. Add the instance to `~/.ssh/config` so it is one click.
+
+### Using CLMS as a module
+
+`pip install -e .` puts both packages on the path, so the library is importable
+from any script or notebook on the instance — you are not restricted to
+`train.py`:
+
+```python
+from clms import Composer, RunContext, registry
+from clms.data import TaskStream, build_task_sequence
+from clms.eval import AccuracyMatrix, ProbeRunner, sequence_accuracy
+from olmo2_cl import Olmo2Config, build_model
+
+ctx   = RunContext(num_tasks=6, device="cuda", seed=0)
+comp  = Composer.from_config({"replay": {"enabled": True, "ratio": 0.25}}, ctx)
+
+mcfg  = Olmo2Config(size_preset="small", vocab_size=128)
+comp.set_model_config(mcfg)              # surface-A mechanisms size themselves
+model = build_model(mcfg, injector=comp).to("cuda")
+comp.setup(model, mcfg)
+
+# then drive your own loop through the hooks:
+#   comp.on_batch / comp.compute_loss / comp.before_step / comp.after_step
+#   comp.on_task_start / comp.on_task_end
+```
+
+The order matters in one place only: `set_model_config` must run *before*
+`build_model`, because architecture-surface mechanisms decide their shape from
+the model config. `train.py` is a reference driver, not a requirement.
 
 Three things specific to rented instances:
 
@@ -219,6 +287,13 @@ Three things specific to rented instances:
 containing model, optimizer *and mechanism* state. A resumed run whose Fisher
 matrix or replay buffer was lost is silently a different experiment — that is
 why `state_dict()` is on the `Mechanism` contract.
+
+**Disk fills faster than you expect.** A checkpoint is ~280MB at 24M params, and
+a 141-run tuned sweep would leave ~40GB behind — enough to fill an instance
+mid-sweep. So the checkpoint is deleted once `result.json` lands (`run.keep_checkpoint`
+to override), leaving ~4KB per run. `run.skip_completed` also makes re-running
+the same sweep command a no-op for finished configurations, so an interrupted
+sweep resumes at the sweep level, not just within a run.
 
 **Pin the GPU type for a whole sweep.** Different cards mean different numerics
 and kernel paths, and that difference shows up in results looking exactly like a
