@@ -22,7 +22,9 @@ sys.path.insert(0, str(REPO / "Continual Learning Mechanism Stack (CLMS)"))
 from clms import Composer, RunContext, registry            # noqa: E402
 from clms import config as cfgmod                          # noqa: E402
 from clms.base import Mechanism                            # noqa: E402
-from clms.data import TaskStream, build_task_sequence      # noqa: E402
+from clms.data import (                                    # noqa: E402
+    TaskStream, build_task_sequence, TASK_BUILDERS, DEFAULT_SEQUENCE,
+)
 from clms.eval import AccuracyMatrix, recovery_ratio       # noqa: E402
 from clms.eval.probes import effective_rank, linear_cka, update_concentration  # noqa: E402
 from olmo2_cl import Olmo2Config, build_model              # noqa: E402
@@ -299,3 +301,104 @@ def test_update_concentration_detects_localised_updates():
         "concentration must separate localised from diffuse updates — this is the "
         "quantity the whole sparsity family is judged on"
     )
+
+
+# ---------------------------------------------------------------------------
+# task well-posedness
+# ---------------------------------------------------------------------------
+def test_induction_cue_is_unique():
+    """The answer must be decidable from the input.
+
+    If the trigger symbol appears more than once before the final position, each
+    occurrence implies a different continuation and accuracy is capped no matter
+    how good the model is. The naive generator was ambiguous on 11.4% of
+    sequences, which is invisible in the loss and looks like a hard task.
+    """
+    task = [t for t in build_task_sequence() if t.name == "induction"][0]
+    g = torch.Generator().manual_seed(0)
+    for _ in range(2000):
+        inp, out = task.generate(g)
+        trigger = inp[-1]
+        cues = [j for j in range(len(inp) - 1) if inp[j] == trigger]
+        assert len(cues) == 1, f"trigger appears at {cues}; the cue must be unique"
+        assert out == [inp[cues[0] + 1]], "answer must follow the single cue"
+
+
+@pytest.mark.parametrize("name", ["copy", "reverse", "sort", "modadd23", "kvrecall"])
+def test_answers_are_a_function_of_the_input(name):
+    """Deterministic map: identical inputs must always yield identical answers."""
+    task = build_task_sequence([name])[0]
+    g = torch.Generator().manual_seed(0)
+    seen: dict[tuple, tuple] = {}
+    for _ in range(2000):
+        inp, out = task.generate(g)
+        k = tuple(inp)
+        if k in seen:
+            assert seen[k] == tuple(out), f"{name}: {k} maps to two answers"
+        seen[k] = tuple(out)
+
+
+def test_kvrecall_keys_are_distinct():
+    """Duplicate keys would make the queried value ambiguous."""
+    task = build_task_sequence(["kvrecall"])[0]
+    g = torch.Generator().manual_seed(0)
+    for _ in range(1000):
+        inp, _ = task.generate(g)
+        keys = inp[:-1:2]
+        assert len(set(keys)) == len(keys), f"duplicate keys: {keys}"
+
+
+def test_every_task_declares_a_chance_baseline():
+    """A raw score is uninterpretable without it.
+
+    kvrecall with two pairs scores 0.50 by guessing between the two values in
+    the prompt — which reads as "half right" and is in fact zero learning. The
+    gate compares against chance, so chance has to be declared.
+    """
+    for name, build in TASK_BUILDERS.items():
+        task = build(0)
+        assert 0.0 <= task.chance < 1.0, f"{name}: implausible chance {task.chance}"
+        if name.startswith(("kvrecall", "induction", "modadd")):
+            assert task.chance > 0.0, (
+                f"{name} is a retrieval/arithmetic task; guessing among the "
+                f"candidates present gives a non-trivial baseline"
+            )
+
+
+def test_default_sequence_excludes_tasks_measured_at_chance():
+    """kvrecall scored exactly at chance at every difficulty and every scale
+    tested, so it contributes only noise to rho."""
+    assert "kvrecall" not in DEFAULT_SEQUENCE
+    assert "kvrecall2" not in DEFAULT_SEQUENCE
+    for name in DEFAULT_SEQUENCE:
+        assert name in TASK_BUILDERS, f"{name} is not a registered task"
+
+
+def test_optimizer_covers_parameters_mechanisms_unfreeze_later():
+    """Per-task freezing must not permanently exclude a parameter.
+
+    O-LoRA activates a different adapter at every task boundary, so adapters
+    1..N are frozen when the optimizer is built and unfrozen later. If the
+    optimizer filtered them out at construction they would receive gradients
+    forever after but never move — which froze the model after task 0 and
+    produced identical results at every lambda.
+    """
+    import train as trainmod
+
+    ctx = RunContext(num_tasks=3, device="cpu", seed=0)
+    mcfg = Olmo2Config(vocab_size=128, hidden_size=64, num_hidden_layers=2,
+                       num_attention_heads=4, num_key_value_heads=4,
+                       intermediate_size=128)
+    comp = Composer.from_config({"olora": {"enabled": True, "rank": 4}}, ctx)
+    comp.set_model_config(mcfg)
+    model = build_model(mcfg, injector=comp)
+    comp.setup(model, mcfg)
+
+    frozen = {n for n, p in model.named_parameters() if not p.requires_grad}
+    assert frozen, "setup should leave the inactive adapters frozen"
+
+    opt = trainmod.build_optimizer(model, {"lr": 1e-3, "weight_decay": 0.01,
+                                           "betas": [0.9, 0.95], "eps": 1e-8})
+    covered = {id(p) for g in opt.param_groups for p in g["params"]}
+    missing = [n for n, p in model.named_parameters() if id(p) not in covered]
+    assert not missing, f"parameters absent from the optimizer: {missing[:4]}"

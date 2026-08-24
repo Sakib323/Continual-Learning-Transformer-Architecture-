@@ -29,15 +29,37 @@ pip install --quiet -e .
 pip install --quiet pytest
 
 echo
-echo "==> torch sees the GPU"
+echo "==> torch can actually use this GPU"
 python - <<'PY'
-import torch
-print(f"    torch {torch.__version__}  cuda={torch.cuda.is_available()}")
-if torch.cuda.is_available():
-    print(f"    device: {torch.cuda.get_device_name(0)}")
-    print(f"    capability: {torch.cuda.get_device_capability(0)}")
-else:
-    raise SystemExit("    no CUDA device — stop here rather than paying for a CPU run")
+import sys, torch
+
+print(f"    torch {torch.__version__}  cuda_build={torch.version.cuda}")
+if not torch.cuda.is_available():
+    sys.exit("    no CUDA device — stop here rather than paying for a CPU run")
+
+name = torch.cuda.get_device_name(0)
+cap = torch.cuda.get_device_capability(0)
+print(f"    device     : {name}")
+print(f"    capability : sm_{cap[0]}{cap[1]}")
+print(f"    torch archs: {' '.join(torch.cuda.get_arch_list())}")
+
+# is_available() is NOT enough. On a card newer than the wheel — Blackwell
+# (sm_120: RTX 50xx) on a pre-2.7 / pre-cu128 torch — it returns True and then
+# every kernel dies with "no kernel image is available for execution on the
+# device". Launch a real kernel to find out now rather than 40 runs in.
+try:
+    x = torch.randn(256, 256, device="cuda")
+    torch.mm(x, x).sum().item()
+    torch.cuda.synchronize()
+except RuntimeError as e:
+    sys.exit(
+        f"    CUDA kernel launch FAILED: {e}\n"
+        f"    torch {torch.__version__} has no kernel for sm_{cap[0]}{cap[1]} ({name}).\n"
+        f"    Fix: pip install --upgrade --index-url "
+        f"https://download.pytorch.org/whl/cu128 torch\n"
+        f"    (Blackwell/RTX 50xx needs torch >= 2.7 built against CUDA 12.8.)"
+    )
+print("    kernel launch ok")
 PY
 
 echo

@@ -66,10 +66,21 @@ def set_seed(seed: int) -> None:
 
 
 def build_optimizer(model, oc: dict):
+    """Every parameter goes in, including ones currently frozen.
+
+    Mechanisms freeze and unfreeze parameters *per task* — O-LoRA activates a
+    different adapter at each boundary, LoRA freezes the backbone. Filtering on
+    requires_grad here captures the state at construction time and permanently
+    excludes anything a mechanism unfreezes later: it still receives gradients,
+    but no optimizer state, so it never moves.
+
+    That silently froze O-LoRA after task 0 across a whole sweep — identical
+    results at every lambda, FM exactly 0.0, CKA exactly 1.0. AdamW skips
+    parameters whose grad is None, so including everything is safe and the
+    requires_grad flags keep doing the actual gating.
+    """
     decay, no_decay = [], []
     for n, p in model.named_parameters():
-        if not p.requires_grad:
-            continue
         (no_decay if p.dim() <= 1 else decay).append(p)
     return torch.optim.AdamW(
         [

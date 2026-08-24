@@ -45,7 +45,7 @@ BASE_CONFIG: dict[str, Any] = {
         "tie_word_embeddings": True,
     },
     "stream": {
-        "tasks": ["copy", "reverse", "sort", "modadd23", "kvrecall", "induction"],
+        "tasks": ["copy", "reverse", "sort", "modadd23", "induction6"],
         "batch_size": 32,
         "steps_per_task": 400,
         "eval_batches": 8,

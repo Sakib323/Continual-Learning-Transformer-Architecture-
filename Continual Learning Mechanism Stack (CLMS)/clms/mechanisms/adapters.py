@@ -227,7 +227,7 @@ class OrthogonalLoRA(Mechanism):
             cur = torch.nn.functional.normalize(w.A[self._task], dim=1)
             for prev in range(self._task):
                 other = torch.nn.functional.normalize(w.A[prev], dim=1)
-                sims.append(float((cur @ other.T).abs().mean()))
+                sims.append(float((cur @ other.T).abs().mean().detach()))
         if not sims:
             return None
         return SignatureCheck(

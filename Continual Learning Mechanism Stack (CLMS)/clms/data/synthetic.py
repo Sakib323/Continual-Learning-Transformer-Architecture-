@@ -46,6 +46,12 @@ class Task:
     task_id: int
     generate: Callable[[torch.Generator], tuple[list[int], list[int]]]
     max_len: int
+    # Exact-match accuracy a model gets from the best *trivial* strategy — for
+    # retrieval tasks, guessing among the candidates actually present in the
+    # prompt. Without this a score is uninterpretable: kvrecall with 2 pairs
+    # scores 0.50 by guessing, which reads as "half right" and is in fact zero
+    # learning. Comparisons in the gate are against this, not against zero.
+    chance: float = 0.0
 
     def sample(self, g: torch.Generator, include_task_token: bool = True) -> tuple[list[int], list[int]]:
         inp, out = self.generate(g)
@@ -68,21 +74,21 @@ def make_copy(task_id: int, length: int = 8) -> Task:
     def gen(g):
         s = _rand_symbols(g, length)
         return s, list(s)
-    return Task("copy", task_id, gen, 2 * length + 5)
+    return Task("copy", task_id, gen, 2 * length + 5, chance=NUM_SYMBOLS ** -length)
 
 
 def make_reverse(task_id: int, length: int = 8) -> Task:
     def gen(g):
         s = _rand_symbols(g, length)
         return s, list(reversed(s))
-    return Task("reverse", task_id, gen, 2 * length + 5)
+    return Task("reverse", task_id, gen, 2 * length + 5, chance=NUM_SYMBOLS ** -length)
 
 
 def make_sort(task_id: int, length: int = 8) -> Task:
     def gen(g):
         s = _rand_symbols(g, length)
         return s, sorted(s)
-    return Task("sort", task_id, gen, 2 * length + 5)
+    return Task("sort", task_id, gen, 2 * length + 5, chance=NUM_SYMBOLS ** -length)
 
 
 def make_modadd(task_id: int, modulus: int = 23) -> Task:
@@ -90,7 +96,7 @@ def make_modadd(task_id: int, modulus: int = 23) -> Task:
         a = int(torch.randint(0, modulus, (1,), generator=g))
         b = int(torch.randint(0, modulus, (1,), generator=g))
         return [sym(a), sym(b)], [sym((a + b) % modulus)]
-    return Task(f"modadd{modulus}", task_id, gen, 8)
+    return Task(f"modadd{modulus}", task_id, gen, 8, chance=1.0 / modulus)
 
 
 def make_kvrecall(task_id: int, n_pairs: int = 4) -> Task:
@@ -103,17 +109,31 @@ def make_kvrecall(task_id: int, n_pairs: int = 4) -> Task:
         q = int(torch.randint(0, n_pairs, (1,), generator=g))
         seq.append(sym(int(keys[q])))
         return seq, [sym(int(vals[q]))]
-    return Task("kvrecall", task_id, gen, 2 * n_pairs + 8)
+    # guessing among the n values present in the prompt
+    return Task("kvrecall", task_id, gen, 2 * n_pairs + 8, chance=1.0 / n_pairs)
 
 
 def make_induction(task_id: int, length: int = 10) -> Task:
+    """Pattern completion: the final token repeats an earlier one; answer with
+    whatever followed that earlier occurrence.
+
+    The cue must be *unique*. If the trigger symbol appears more than once
+    before the end, each occurrence implies a different continuation and the
+    answer is undecidable from the input — measured at 11.4% of sequences in the
+    naive version, which caps accuracy no matter how good the model is.
+    """
     def gen(g):
         s = _rand_symbols(g, length)
-        # plant a bigram repeat: s[i], s[i+1] ... s[-1] == s[i]
         i = int(torch.randint(0, length - 3, (1,), generator=g))
-        s[-1] = s[i]
+        trigger = s[i]
+        # strip every other occurrence so exactly one cue remains
+        for j in range(length - 1):
+            while j != i and s[j] == trigger:
+                s[j] = sym(int(torch.randint(0, NUM_SYMBOLS, (1,), generator=g)))
+        s[-1] = trigger
         return s, [s[i + 1]]
-    return Task("induction", task_id, gen, length + 6)
+    # guessing a symbol from the prompt
+    return Task("induction", task_id, gen, length + 6, chance=1.0 / (length - 1))
 
 
 TASK_BUILDERS: dict[str, Callable[[int], Task]] = {
@@ -122,11 +142,29 @@ TASK_BUILDERS: dict[str, Callable[[int], Task]] = {
     "sort": lambda tid: make_sort(tid),
     "modadd23": lambda tid: make_modadd(tid, 23),
     "modadd31": lambda tid: make_modadd(tid, 31),
-    "kvrecall": lambda tid: make_kvrecall(tid),
-    "induction": lambda tid: make_induction(tid),
+    "kvrecall": lambda tid: make_kvrecall(tid, 4),
+    "kvrecall2": lambda tid: make_kvrecall(tid, 2),
+    "induction": lambda tid: make_induction(tid, 10),
+    "induction6": lambda tid: make_induction(tid, 6),
 }
 
-DEFAULT_SEQUENCE = ["copy", "reverse", "sort", "modadd23", "kvrecall", "induction"]
+# The default sequence uses the easier retrieval variants.
+#
+# `kvrecall` (4 pairs) and `induction` (length 10) both require an induction-head
+# circuit and were measured unlearned at 24M / 1200 steps — kvrecall at 0.20,
+# below the 0.25 you get by guessing among the values present. A task nobody
+# learns contributes only noise to every mechanism's score, so the ceiling has to
+# be real before it is worth sweeping against.
+# kvrecall is excluded at every difficulty. Measured at exactly its chance
+# baseline (0.20 with 4 pairs, 0.50 with 2) — the model picks among the values
+# present and never learns the key match. Key-value retrieval needs an induction
+# head that does not form at this scale, and a task scoring at chance adds only
+# noise to every mechanism's rho.
+DEFAULT_SEQUENCE = ["copy", "reverse", "sort", "modadd23", "induction6"]
+
+# Tasks with a verified clean ceiling at 24M. Use this if the easier retrieval
+# variants still fail the phase-0 gate on your hardware.
+CLEAN_SEQUENCE = ["copy", "reverse", "sort", "modadd23"]
 
 
 # ---------------------------------------------------------------------------
