@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 import torch
+import torch.nn as nn
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
@@ -402,3 +403,91 @@ def test_optimizer_covers_parameters_mechanisms_unfreeze_later():
     covered = {id(p) for g in opt.param_groups for p in g["params"]}
     missing = [n for n, p in model.named_parameters() if id(p) not in covered]
     assert not missing, f"parameters absent from the optimizer: {missing[:4]}"
+
+
+# ---------------------------------------------------------------------------
+# portability to a foreign model
+# ---------------------------------------------------------------------------
+class _ForeignGPT(nn.Module):
+    """Deliberately not our model: no Injector, no observe() calls, no OLMo.
+
+    Stands in for an official OLMo 2 / Llama / Qwen module tree before any
+    injection points have been added to it.
+    """
+
+    def __init__(self, V=128, d=64, L=2):
+        super().__init__()
+        self.embed_tokens = nn.Embedding(V, d)
+        self.layers = nn.ModuleList(nn.ModuleDict({
+            "attn": nn.MultiheadAttention(d, 4, batch_first=True),
+            "mlp": nn.Sequential(nn.Linear(d, 4 * d), nn.GELU(), nn.Linear(4 * d, d)),
+        }) for _ in range(L))
+        self.lm_head = nn.Linear(d, V, bias=False)
+
+    def forward(self, input_ids, labels=None, **kw):
+        x = self.embed_tokens(input_ids)
+        for l in self.layers:
+            a, _ = l["attn"](x, x, x, need_weights=False)
+            x = x + a
+            x = x + l["mlp"](x)
+        logits = self.lm_head(x)
+        loss = None
+        if labels is not None:
+            loss = torch.nn.functional.cross_entropy(
+                logits.view(-1, logits.size(-1)), labels.view(-1), ignore_index=-100)
+        return {"logits": logits, "loss": loss}
+
+
+# Mechanisms that touch only parameters and gradients work on any nn.Module,
+# so they port to an unmodified upstream model with no source edits at all.
+MODEL_AGNOSTIC = ["ewc", "si", "lwf", "replay", "der", "gpm", "shrink_perturb"]
+
+
+@pytest.mark.parametrize("name", MODEL_AGNOSTIC)
+def test_loss_and_optimizer_mechanisms_run_on_a_foreign_model(name):
+    ctx = RunContext(num_tasks=3, device="cpu", seed=0)
+    mcfg = Olmo2Config(vocab_size=128, hidden_size=64, num_hidden_layers=2,
+                       num_attention_heads=4, num_key_value_heads=4,
+                       intermediate_size=256)
+    model = _ForeignGPT()
+    comp = Composer.from_config({name: {"enabled": True}}, ctx)
+    comp.set_model_config(mcfg)
+    comp.setup(model, mcfg)
+    batch = {"input_ids": torch.randint(0, 128, (4, 10)),
+             "labels": torch.randint(0, 128, (4, 10)),
+             "task_id": torch.zeros(4, dtype=torch.long)}
+    model(input_ids=batch["input_ids"], labels=batch["labels"])
+    comp.run_self_tests(model, batch)
+
+
+@pytest.mark.parametrize("name", ["kwta", "l2p"])
+def test_activation_mechanisms_report_inert_without_injection_points(name):
+    """The dangerous case: attaches without error, then silently does nothing.
+
+    An activation-surface mechanism needs the host model to call
+    `injector.observe(...)`. Dropped onto an unmodified upstream model it raises
+    no exception — it just never fires. That has to surface as `inert`, or a
+    port would produce a full results table for mechanisms that never ran.
+    """
+    ctx = RunContext(num_tasks=3, device="cpu", seed=0)
+    mcfg = Olmo2Config(vocab_size=128, hidden_size=64, num_hidden_layers=2,
+                       num_attention_heads=4, num_key_value_heads=4,
+                       intermediate_size=256)
+    ids = torch.randint(0, 128, (4, 10))
+    lab = torch.randint(0, 128, (4, 10))
+
+    comp = Composer.from_config({name: {"enabled": True}}, ctx)
+    comp.set_model_config(mcfg)
+    foreign = _ForeignGPT()
+    comp.setup(foreign, mcfg)
+    comp.on_task_start(foreign, 0)
+    foreign(input_ids=ids, labels=lab)
+    assert name in comp.inert(), f"{name} silently did nothing and was not reported"
+
+    comp2 = Composer.from_config({name: {"enabled": True}}, ctx)
+    comp2.set_model_config(mcfg)
+    ours = build_model(mcfg, injector=comp2)
+    comp2.setup(ours, mcfg)
+    comp2.on_task_start(ours, 0)
+    ours(input_ids=ids, labels=lab)
+    assert name not in comp2.inert(), f"{name} should fire on a model with observe() calls"

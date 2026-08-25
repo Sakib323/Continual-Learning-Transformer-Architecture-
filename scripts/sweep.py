@@ -210,7 +210,9 @@ def main() -> None:
     ap.add_argument("--preset", default="ablation",
                     help="'ablation' for the standard set, or a single preset name")
     ap.add_argument("--seeds", default="0,1,2")
-    ap.add_argument("--out-dir", default="runs")
+    ap.add_argument("--out-dir", default="runs",
+                    help="where runs are written AND read back from; "
+                         "--set run.out_dir=... overrides this consistently")
     ap.add_argument("--set", dest="extra", action="append", default=[],
                     help="forwarded to train.py, e.g. --set model.size_preset=small")
     ap.add_argument("--tune", action="store_true",
@@ -222,6 +224,14 @@ def main() -> None:
                     help="report every grid point rather than each mechanism's best")
     ap.add_argument("--dry-run", action="store_true", help="print the plan and exit")
     args = ap.parse_args()
+
+    # `--set run.out_dir=X` is forwarded to train.py and wins there, because it
+    # lands after the sweep's own --set. Honour it here too, or the sweep writes
+    # to X and then reports "no results found" after reading `runs`.
+    out_dir = args.out_dir
+    for kv in args.extra:
+        if kv.startswith("run.out_dir="):
+            out_dir = kv.split("=", 1)[1]
 
     if not args.report_only:
         presets = ABLATION_SET if args.preset == "ablation" else [args.preset]
@@ -247,9 +257,9 @@ def main() -> None:
 
         for preset, overrides, label in jobs:
             for seed in seeds:
-                run_one(preset, seed, args.extra + overrides, args.out_dir, label)
+                run_one(preset, seed, args.extra + overrides, out_dir, label)
 
-    report(collect(args.out_dir), best_only=not args.all_points)
+    report(collect(out_dir), best_only=not args.all_points)
 
 
 if __name__ == "__main__":
