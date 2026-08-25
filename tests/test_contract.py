@@ -491,3 +491,150 @@ def test_activation_mechanisms_report_inert_without_injection_points(name):
     comp2.on_task_start(ours, 0)
     ours(input_ids=ids, labels=lab)
     assert name not in comp2.inert(), f"{name} should fire on a model with observe() calls"
+
+
+def test_replay_signature_detects_a_buffer_that_forgets():
+    """D1 must fail when the buffer stops carrying data across task boundaries.
+
+    Replay is the strongest mechanism in the sweep, and accuracy alone cannot
+    tell "rehearsed old tasks" from "happened to score well". This simulates the
+    failure by feeding the probe only current-task samples.
+    """
+    from clms.mechanisms.replay import ExperienceReplay
+
+    m = ExperienceReplay()
+    ctx = RunContext(num_tasks=3, device="cpu", seed=0)
+    m._task = 2
+
+    m._replayed, m._replayed_old = 100, 60          # healthy reservoir
+    assert m.signature(None, ctx).passed
+
+    m._replayed, m._replayed_old = 100, 0           # buffer cleared each task
+    sig = m.signature(None, ctx)
+    assert not sig.passed, "a buffer retaining nothing must fail D1"
+    assert sig.value == 0.0
+
+
+def test_learning_accuracy_is_undefined_for_joint_training():
+    """LA reads the diagonal, which only means something in a sequential stream.
+
+    Joint training sees every task at once, so its diagonal reflects when
+    checkpoints were taken, not plasticity. Left unguarded it reports ~0.33 and
+    flags the ceiling run — the best possible result — as a plasticity collapse.
+    """
+    m = AccuracyMatrix(num_tasks=3)
+    for t in range(3):
+        for i in range(t + 1):
+            m.record(after_task=t, on_task=i, acc=0.9)
+    assert m.learning_accuracy("sequential") == pytest.approx(0.9)
+    assert math.isnan(m.learning_accuracy("joint"))
+    assert math.isnan(m.summary(mode="joint")["LA"])
+
+
+def test_learning_accuracy_separates_forgetting_from_never_learning():
+    """Two models with the same AA, for opposite reasons."""
+    forgot = AccuracyMatrix(num_tasks=2)      # learned both, lost the first
+    forgot.record(0, 0, 1.0)
+    forgot.record(1, 0, 0.0); forgot.record(1, 1, 1.0)
+
+    rigid = AccuracyMatrix(num_tasks=2)       # kept the first, never learned the second
+    rigid.record(0, 0, 1.0)
+    rigid.record(1, 0, 1.0); rigid.record(1, 1, 0.0)
+
+    assert forgot.average_accuracy() == pytest.approx(rigid.average_accuracy())
+    assert forgot.learning_accuracy() == pytest.approx(1.0)
+    assert rigid.learning_accuracy() == pytest.approx(0.5)
+
+
+def test_zeroing_a_gradient_does_not_freeze_the_parameter_under_adamw():
+    """The hazard behind sparse_update's B2 failure.
+
+    Mechanisms in the sparsity family express "only update these parameters" by
+    multiplying the rest of the gradient by zero. Under AdamW that does not hold
+    the parameter still: exponential-average momentum from earlier steps keeps
+    moving it, and decoupled weight decay applies to any parameter whose grad is
+    not None — zero counts.
+
+    Measured on the real sweep: sparse_update concentrates 90% of memory
+    *accesses* into 4.6% of slots (A4 passes) while displacement still spreads
+    over 87.5% of them (B2 fails). The masking works; the optimizer undoes it.
+
+    A mechanism that truly needs frozen parameters has to set grad to None, keep
+    them out of the optimizer, or restore them after the step.
+    """
+    w = torch.nn.Parameter(torch.randn(6))
+    opt = torch.optim.AdamW([w], lr=1e-2, weight_decay=0.01)
+
+    w.grad = torch.ones(6)          # build momentum on every entry
+    opt.step()
+    opt.zero_grad(set_to_none=False)
+    snap = w.detach().clone()
+
+    g = torch.ones(6)
+    g[2:] = 0.0                     # "sparse update": mask all but the first two
+    w.grad = g
+    opt.step()
+
+    moved = (w.detach() - snap).abs()
+    assert (moved[2:] > 0).all(), "masked parameters are expected to still move"
+    assert moved[2:].mean() > 0.4 * moved[:2].mean(), (
+        "masked parameters move on the same order as unmasked ones; if this "
+        "ever stops being true, the sparsity mechanisms can rely on masking"
+    )
+
+
+def test_setting_grad_to_none_does_freeze_the_parameter():
+    """The remedy: None, not zero."""
+    w = torch.nn.Parameter(torch.randn(4))
+    opt = torch.optim.AdamW([w], lr=1e-2, weight_decay=0.01)
+    w.grad = torch.ones(4)
+    opt.step()
+    snap = w.detach().clone()
+
+    w.grad = None
+    opt.step()
+    assert torch.equal(w.detach(), snap), "grad=None must leave the parameter untouched"
+
+
+def test_sparse_update_frozen_slots_do_not_move_at_all():
+    """Masked entries must be bit-identical after an optimizer step.
+
+    Zeroing the gradient leaves Adam's momentum and AdamW's weight decay free to
+    move them — measured at ~67% of a normal update. `after_step` restores the
+    recorded values, so the freeze is exact rather than approximate.
+    """
+    ctx = RunContext(num_tasks=3, device="cpu", seed=0)
+    mcfg = Olmo2Config(vocab_size=128, hidden_size=64, num_hidden_layers=2,
+                       num_attention_heads=4, num_key_value_heads=4,
+                       intermediate_size=128)
+    comp = Composer.from_config(
+        {"memory_layer": {"enabled": True},
+         "sparse_update": {"enabled": True, "warmup_steps": 0,
+                           "background_batches": 1}}, ctx)
+    comp.set_model_config(mcfg)
+    model = build_model(mcfg, injector=comp)
+    comp.setup(model, mcfg)
+    comp.on_task_start(model, 0)
+    mech = [m for m in comp.mechanisms if m.name == "sparse_update"][0]
+
+    opt = torch.optim.AdamW(model.parameters(), lr=1e-2, weight_decay=0.01)
+    ids = torch.randint(0, 128, (8, 10))
+    lab = torch.randint(0, 128, (8, 10))
+
+    before = held = None
+    for step in range(6):
+        out = model(ids, labels=lab)
+        out["loss"].backward()
+        comp.before_step(model)
+        if step == 5:
+            before = mech.memory.values.weight.detach().clone()
+            held = list(mech._hold)
+        opt.step()
+        opt.zero_grad(set_to_none=True)
+        comp.after_step(model)
+
+    assert held, "nothing was masked, so the test proves nothing"
+    frozen = held[0][1]
+    moved = (mech.memory.values.weight.detach() - before).abs().sum(dim=1)
+    assert float(moved[frozen].max()) == 0.0, "frozen slots moved"
+    assert float(moved[~frozen].abs().sum()) > 0.0, "active slots should still train"

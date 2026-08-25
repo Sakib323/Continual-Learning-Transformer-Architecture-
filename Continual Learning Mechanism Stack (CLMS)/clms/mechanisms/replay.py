@@ -73,9 +73,15 @@ class ExperienceReplay(Mechanism):
     def __init__(self, **kw):
         super().__init__(**kw)
         self.buffer: _Reservoir | None = None
+        self._task = 0
+        self._replayed = 0        # samples drawn from the buffer
+        self._replayed_old = 0    # ...of which came from an earlier task
 
     def setup(self, model, cfg, ctx) -> None:
         self.buffer = _Reservoir(self.params["capacity"], seed=ctx.seed)
+
+    def on_task_start(self, model, task_id, ctx) -> None:
+        self._task = task_id
 
     # ------------------------------------------------------------------
     def on_batch(self, batch, step, ctx):
@@ -88,6 +94,11 @@ class ExperienceReplay(Mechanism):
                 self.buffer.add({
                     "input_ids": batch["input_ids"][i].detach().cpu().clone(),
                     "labels": batch["labels"][i].detach().cpu().clone(),
+                    # kept so the signature probe can verify the replayed
+                    # samples are actually from *earlier* tasks — a buffer that
+                    # only ever returned current-task data would be a no-op
+                    # scoring like a win, and nothing else would catch it
+                    "task_id": int(batch["task_id"][i]),
                 })
 
         # read path: interleave
@@ -97,6 +108,10 @@ class ExperienceReplay(Mechanism):
         samples = self.buffer.sample(n_replay)
         if not samples:
             return None
+        self._replayed += len(samples)
+        self._replayed_old += sum(
+            1 for smp in samples if smp.get("task_id", self._task) < self._task
+        )
         device = batch["input_ids"].device
         merged = dict(batch)
         merged["input_ids"] = torch.cat(
@@ -126,6 +141,34 @@ class ExperienceReplay(Mechanism):
         if out["input_ids"].shape[0] <= before:
             return False, "batch did not grow after replay interleave"
         return True, f"batch {before} -> {out['input_ids'].shape[0]}, buffer={len(self.buffer)}"
+
+    def signature(self, model, ctx) -> SignatureCheck | None:
+        """Replay's claim is that it rehearses *earlier* tasks.
+
+        Accuracy alone cannot distinguish that from a buffer that happens to
+        return current-task data — both look like a high score. This measures
+        the fraction of replayed samples whose task_id precedes the current
+        task, which is the thing the method actually asserts.
+        """
+        if self._task == 0 or self._replayed == 0:
+            return None
+        frac = self._replayed_old / self._replayed
+        # A reservoir over a uniform stream sits around 0.4-0.7 here, drifting
+        # with task count and where in the task you measure. The failure this
+        # guards against is categorical, not marginal: a buffer that is cleared
+        # at the task boundary, or never records provenance, reads ~0. A 0.5
+        # threshold would sit inside normal variation and fire spuriously, so
+        # the bar is set where the two regimes actually separate.
+        return SignatureCheck(
+            probe="D1",
+            quantity="fraction of replayed samples drawn from earlier tasks",
+            value=frac,
+            baseline=0.2,
+            direction="increase",
+            passed=frac > 0.2,
+            detail="replay must rehearse earlier tasks; ~0 means the buffer "
+                   "is not retaining anything across the boundary",
+        )
 
     def cost_report(self) -> CostReport:
         n = self.buffer.nbytes() if self.buffer else 0

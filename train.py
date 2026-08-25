@@ -341,7 +341,7 @@ def train(cfg: dict) -> dict:
         "mechanisms": composer.names,
         "params": model.num_parameters(),
         "wall_seconds": time.time() - t_start,
-        "metrics": matrix.summary(),
+        "metrics": matrix.summary(mode=mode),
         "matrix": matrix.as_dict(),
         "history": history,
         "signatures": sigs,

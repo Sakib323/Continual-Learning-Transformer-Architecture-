@@ -75,6 +75,36 @@ class AccuracyMatrix:
         ]
         return sum(vals) / len(vals) if vals else float("nan")
 
+    def learning_accuracy(self, mode: str = "sequential") -> float:
+        """LA — mean of the diagonal: how well each task was learned at the
+        moment it was trained, before any later task could disturb it.
+
+        This separates two failures that AA alone conflates. A low AA can mean
+        the model learned and then forgot (LA high, AA low) or that it never
+        learned at all (LA low, and there was nothing to forget). Reporting only
+        AA and FM makes the second look like partial success.
+
+        Measured: EWC at lambda=100 has LA 0.43 against the sequential
+        control's 0.83 — it retains its first two tasks perfectly and then goes
+        rigid, never learning tasks 3-5. Its rho of 0.335 is entirely retention
+        of what it learned early, not continual learning.
+
+        IM needs a joint baseline to be defined; LA does not, so it is always
+        available and always comparable against the sequential control.
+
+        Only defined for a sequential stream. Joint training sees every task at
+        once, so "accuracy right after learning task j" names nothing — its
+        diagonal is an artefact of when the checkpoints happen to be taken, and
+        reading it as plasticity flags the ceiling run as collapsed.
+        """
+        if mode != "sequential":
+            return float("nan")
+        vals = [
+            self.A[j][j] for j in range(self.num_tasks)
+            if not math.isnan(self.A[j][j])
+        ]
+        return sum(vals) / len(vals) if vals else float("nan")
+
     def intransigence(self, joint_per_task: list[float] | None = None) -> float:
         """IM — how much worse than joint training the model does on each task
         at the moment it learns it. Isolates lost *plasticity* from lost memory."""
@@ -91,6 +121,7 @@ class AccuracyMatrix:
         return {
             "AA": self.average_accuracy(),
             "AIA": self.average_incremental_accuracy(),
+            "LA": self.learning_accuracy(ctx.get("mode", "sequential")),
             "FM": self.forgetting(),
             "BWT": self.backward_transfer(),
             "FWT": self.forward_transfer(ctx.get("random_baseline")),
