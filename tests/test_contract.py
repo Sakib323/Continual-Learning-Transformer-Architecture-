@@ -638,3 +638,60 @@ def test_sparse_update_frozen_slots_do_not_move_at_all():
     moved = (mech.memory.values.weight.detach() - before).abs().sum(dim=1)
     assert float(moved[frozen].max()) == 0.0, "frozen slots moved"
     assert float(moved[~frozen].abs().sum()) > 0.0, "active slots should still train"
+
+
+def test_filling_future_cells_does_not_disturb_the_other_metrics():
+    """Evaluating unseen tasks must be strictly additive.
+
+    FWT reads A[j-1][j], so those cells have to be filled. Every other metric is
+    index-bounded to the seen region rather than relying on future cells being
+    NaN — this pins that down, because a silent shift in AA would invalidate
+    every sweep run before the change.
+    """
+    seen = AccuracyMatrix(num_tasks=3)
+    full = AccuracyMatrix(num_tasks=3)
+    vals = {(0, 0): 1.0, (1, 0): 0.5, (1, 1): 0.9, (2, 0): 0.3, (2, 1): 0.6, (2, 2): 0.8}
+    for (t, j), v in vals.items():
+        seen.record(t, j, v)
+        full.record(t, j, v)
+    # the same run, but also evaluated on tasks it had not reached yet
+    for (t, j), v in {(0, 1): 0.21, (0, 2): 0.19, (1, 2): 0.25}.items():
+        full.record(t, j, v)
+
+    assert full.average_accuracy() == pytest.approx(seen.average_accuracy())
+    assert full.forgetting() == pytest.approx(seen.forgetting())
+    assert full.backward_transfer() == pytest.approx(seen.backward_transfer())
+    assert full.learning_accuracy() == pytest.approx(seen.learning_accuracy())
+
+    # ...and only now is forward transfer computable at all
+    base = [0.2, 0.2, 0.2]
+    assert math.isnan(seen.forward_transfer(base))
+    assert not math.isnan(full.forward_transfer(base))
+    # A[0][1]=0.21, A[1][2]=0.25 against a 0.2 baseline -> mean of +0.01, +0.05
+    assert full.forward_transfer(base) == pytest.approx(0.03)
+
+
+def test_steps_schedule_gives_each_task_its_own_budget():
+    """Uniform exposure is the convenient case, not the realistic one.
+
+    A personalised model sees whatever its user talks about most. Replay's
+    buffer is a uniform sample *of the stream*, so a skewed stream yields a
+    skewed buffer — and rehearsal's rho=1.0 was measured on a perfectly balanced
+    one. This is the knob that lets the skewed case be tested.
+    """
+    tasks = build_task_sequence(["copy", "reverse", "sort"])
+    s = TaskStream(tasks, batch_size=4, steps_per_task=10,
+                   steps_schedule=[5, 5, 40])
+    assert [s.steps_for(i) for i in range(3)] == [5, 5, 40]
+    assert len(list(s.batches(tasks[2]))) == 40, "skewed task must get its budget"
+    assert len(list(s.batches(tasks[0]))) == 5
+
+    uniform = TaskStream(tasks, batch_size=4, steps_per_task=10)
+    assert [uniform.steps_for(i) for i in range(3)] == [10, 10, 10]
+    assert len(list(uniform.batches(tasks[0]))) == 10
+
+
+def test_steps_schedule_length_must_match_the_task_list():
+    tasks = build_task_sequence(["copy", "reverse"])
+    with pytest.raises(ValueError, match="steps_schedule"):
+        TaskStream(tasks, batch_size=4, steps_schedule=[100, 100, 100])

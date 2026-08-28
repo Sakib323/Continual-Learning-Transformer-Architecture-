@@ -210,17 +210,38 @@ class TaskStream:
         steps_per_task: int = 400,
         seed: int = 0,
         include_task_token: bool = True,
+        steps_schedule: list[int] | None = None,
     ):
         self.tasks = tasks
         self.batch_size = batch_size
         self.steps_per_task = steps_per_task
+        # Per-task step budgets. Uniform exposure is the convenient case, not
+        # the realistic one: a personalised model sees whatever its user talks
+        # about most, and replay's buffer is a *uniform sample of the stream*,
+        # so a skewed stream produces a skewed buffer. Rehearsal was measured at
+        # rho=1.0 on a perfectly balanced stream; this is how you find out
+        # whether that survives 90% of the traffic being one topic.
+        if steps_schedule is not None and len(steps_schedule) != len(tasks):
+            raise ValueError(
+                f"steps_schedule has {len(steps_schedule)} entries for "
+                f"{len(tasks)} tasks"
+            )
+        self.steps_schedule = steps_schedule
         self.include_task_token = include_task_token
         self.max_len = max(t.max_len for t in tasks)
         self.seed = seed
         self._g = torch.Generator().manual_seed(seed)
 
+    def steps_for(self, task_idx: int) -> int:
+        """Training steps allotted to task `task_idx`."""
+        if self.steps_schedule is None:
+            return self.steps_per_task
+        return self.steps_schedule[task_idx]
+
     def batches(self, task: Task, n: int | None = None):
-        for _ in range(n if n is not None else self.steps_per_task):
+        if n is None:
+            n = self.steps_for(self.tasks.index(task))
+        for _ in range(n):
             yield make_batch(
                 task, self.batch_size, self._g, self.max_len, self.include_task_token
             )

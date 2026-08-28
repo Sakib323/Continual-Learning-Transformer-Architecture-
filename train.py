@@ -101,21 +101,44 @@ def lr_at(step: int, total: int, oc: dict) -> float:
 
 
 # ---------------------------------------------------------------------------
+def _parse_schedule(v) -> list[int] | None:
+    """Accept a list, or the comma string that --set produces."""
+    if v is None or v == "":
+        return None
+    if isinstance(v, str):
+        return [int(x) for x in v.split(",") if x.strip()]
+    return [int(x) for x in v]
+
+
 def evaluate_all(model, stream, upto: int, device: str, matrix: AccuracyMatrix,
-                 after_task: int, eval_batches: int) -> dict[str, float]:
+                 after_task: int, eval_batches: int,
+                 eval_future: bool = True) -> dict[str, float]:
     """Evaluate on every task seen so far — the whole accuracy matrix row.
 
     Evaluating only the current task is the most common way to accidentally
     measure nothing.
+
+    With `eval_future`, also evaluate the tasks *not yet trained on*. Those cells
+    are what forward transfer is computed from: FWT reads A[j-1][j], accuracy on
+    task j the moment before training on it. Without them FWT is NaN no matter
+    what baseline is supplied, which is why it was NaN in every run of the first
+    three sweeps.
+
+    Safe to fill: AA, FM, BWT and LA are all index-bounded to the seen region
+    rather than relying on future cells being NaN, so this is strictly additive.
+    Costs one extra evaluation per unseen task per boundary.
     """
     accs = {}
-    for j in range(upto + 1):
+    last = len(stream.tasks) - 1 if eval_future else upto
+    for j in range(last + 1):
         task = stream.tasks[j]
         acc = sequence_accuracy(
             model, stream.eval_batches(task, eval_batches), device
         )
         matrix.record(after_task, j, acc)
-        accs[f"acc/{task.name}"] = acc
+        # keep unseen tasks out of the progress line; they are matrix data, not
+        # a claim about what the model has learned
+        accs[f"acc/{task.name}" if j <= upto else f"pre/{task.name}"] = acc
     return accs
 
 
@@ -131,6 +154,7 @@ def train(cfg: dict) -> dict:
         tasks,
         batch_size=sc["batch_size"],
         steps_per_task=sc["steps_per_task"],
+        steps_schedule=_parse_schedule(sc.get("steps_schedule")),
         seed=rc["seed"],
         include_task_token=(sc["scenario"] == "task_il"),
     )
@@ -210,7 +234,7 @@ def train(cfg: dict) -> dict:
 
     # ------------------------------------------------------------------
     if mode == "joint":
-        total = sc["steps_per_task"] * len(tasks)
+        total = sum(stream.steps_for(i) for i in range(len(tasks)))
         gens = [stream.batches(t, total) for t in tasks]
         model.train()
         for step in range(total):
@@ -238,7 +262,7 @@ def train(cfg: dict) -> dict:
             for step, batch in enumerate(stream.batches(task)):
                 batch = {k: v.to(device) for k, v in batch.items()}
                 for g in opt.param_groups:
-                    g["lr"] = lr_at(step, sc["steps_per_task"], oc)
+                    g["lr"] = lr_at(step, stream.steps_for(i), oc)
                 out = m(batch["input_ids"], labels=batch["labels"])
                 out["loss"].backward()
                 torch.nn.utils.clip_grad_norm_(m.parameters(), oc["grad_clip"])
@@ -249,7 +273,7 @@ def train(cfg: dict) -> dict:
             print(f"  [independent] {task.name}: {acc:.4f}")
 
     else:  # sequential — the continual setting
-        global_step = start_task * sc["steps_per_task"]
+        global_step = sum(stream.steps_for(i) for i in range(start_task))
         for task_idx, task in enumerate(tasks):
             if task_idx < start_task:
                 continue
@@ -270,8 +294,8 @@ def train(cfg: dict) -> dict:
                 for g in optimizer.param_groups:
                     g["lr"] = lr_at(
                         step if oc["rewarm_per_task"] else global_step,
-                        sc["steps_per_task"] if oc["rewarm_per_task"]
-                        else sc["steps_per_task"] * len(tasks),
+                        stream.steps_for(task_idx) if oc["rewarm_per_task"]
+                        else sum(stream.steps_for(i) for i in range(len(tasks))),
                         oc,
                     )
 
@@ -341,7 +365,8 @@ def train(cfg: dict) -> dict:
         "mechanisms": composer.names,
         "params": model.num_parameters(),
         "wall_seconds": time.time() - t_start,
-        "metrics": matrix.summary(mode=mode),
+        "metrics": matrix.summary(mode=mode,
+                                  random_baseline=[t.chance for t in tasks]),
         "matrix": matrix.as_dict(),
         "history": history,
         "signatures": sigs,

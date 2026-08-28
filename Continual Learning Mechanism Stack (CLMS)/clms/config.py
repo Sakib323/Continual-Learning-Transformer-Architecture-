@@ -48,6 +48,9 @@ BASE_CONFIG: dict[str, Any] = {
         "tasks": ["copy", "reverse", "sort", "modadd23", "induction6"],
         "batch_size": 32,
         "steps_per_task": 400,
+        # Optional per-task step budgets, e.g. [400,400,400,400,2000] to model a
+        # user who overwhelmingly talks about the last topic. None = uniform.
+        "steps_schedule": None,
         "eval_batches": 8,
         "scenario": "task_il",       # task_il | class_il
     },
