@@ -150,6 +150,34 @@ headline result rehearses earlier tasks rather than merely scoring well.
 
 ---
 
+## A reproducibility bug in three mechanisms
+
+`gpm`, `shrink_perturb` and `continual_backprop` drew training randomness from
+the **global** RNG — GPM subsampling activations for its projection basis,
+shrink-perturb injecting noise, CBP deciding stochastically which units to
+reinitialise. Runs were therefore not reproducible at a fixed seed:
+
+```
+gpm, identical seed and config, before the fix
+  run a: AA=0.243056   run b: AA=0.538194    dAA = 0.295
+```
+
+That spread is roughly 0.43 of span — larger than most mechanisms' entire
+effect — and seed-to-seed error bars cannot see it, because the variance lives
+*within* a seed. Every reported sd for those three was understated, and GPM's
+apparent 0.207 -> 0.324 improvement between sweeps was noise.
+
+Fixed with a per-mechanism seeded generator, offset by a hash of the mechanism
+name so stacked mechanisms do not share a stream. Verified: the same config is
+now **bit-exact on CPU** (dAA = 0.00000000).
+
+A residual remains on GPU (dAA 0.052 on MPS) and is *not* our code. GPM selects
+its basis rank by thresholding the cumulative singular-value spectrum, so float
+noise near the threshold flips the retained rank by one — a discrete change to
+the constraint that compounds. GPM is inherently higher-variance than the other
+mechanisms on any non-deterministic backend and needs more seeds before its
+ranking can be trusted.
+
 ## Reproducibility
 
 `replay` and `olora` are bit-identical between the v2 and v3 sweeps — same

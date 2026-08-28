@@ -695,3 +695,37 @@ def test_steps_schedule_length_must_match_the_task_list():
     tasks = build_task_sequence(["copy", "reverse"])
     with pytest.raises(ValueError, match="steps_schedule"):
         TaskStream(tasks, batch_size=4, steps_schedule=[100, 100, 100])
+
+
+@pytest.mark.parametrize("name", ["gpm", "shrink_perturb", "continual_backprop"])
+def test_training_randomness_is_seeded(name):
+    """A mechanism must draw the same sequence twice at the same seed.
+
+    GPM subsamples activations to build its projection basis, shrink-perturb
+    injects noise, CBP decides stochastically which units to reinitialise. All
+    three drew from the global RNG, which made runs irreproducible at a fixed
+    seed — GPM measured AA 0.243 vs 0.538 across two runs of the identical
+    config. That spread is larger than most mechanisms' entire effect, and
+    seed-to-seed error bars cannot see it because it lives *within* a seed.
+    """
+    ctx = RunContext(num_tasks=3, device="cpu", seed=7)
+    a = registry.get(name)()
+    b = registry.get(name)()
+    draws_a = [float(torch.rand(1, generator=a.rng(ctx)).item()) for _ in range(5)]
+    draws_b = [float(torch.rand(1, generator=b.rng(ctx)).item()) for _ in range(5)]
+    assert draws_a == draws_b, f"{name} is not reproducible at a fixed seed"
+
+    other = RunContext(num_tasks=3, device="cpu", seed=8)
+    c = registry.get(name)()
+    draws_c = [float(torch.rand(1, generator=c.rng(other)).item()) for _ in range(5)]
+    assert draws_a != draws_c, f"{name} ignores the seed entirely"
+
+
+def test_two_mechanisms_do_not_share_a_random_stream():
+    """Stacked mechanisms must not draw identical sequences."""
+    ctx = RunContext(num_tasks=3, device="cpu", seed=0)
+    g = registry.get("gpm")()
+    s = registry.get("shrink_perturb")()
+    dg = [float(torch.rand(1, generator=g.rng(ctx)).item()) for _ in range(5)]
+    ds = [float(torch.rand(1, generator=s.rng(ctx)).item()) for _ in range(5)]
+    assert dg != ds, "mechanisms in one stack share a random stream"

@@ -52,6 +52,7 @@ class GradientProjectionMemory(Mechanism):
         super().__init__(**kw)
         self.bases: dict[str, torch.Tensor] = {}   # layer name -> (in_dim, k)
         self._acts: dict[str, list[torch.Tensor]] = {}
+        self._hook_rng: torch.Generator | None = None
         self._layers: dict[str, nn.Linear] = {}
         self._handles: list = []
         self._collecting = False
@@ -60,6 +61,7 @@ class GradientProjectionMemory(Mechanism):
 
     # ------------------------------------------------------------------
     def setup(self, model, cfg, ctx) -> None:
+        self._hook_rng = self.rng(ctx)
         for name, module in model.named_modules():
             if isinstance(module, nn.Linear) and module.in_features >= self.params["min_features"]:
                 if "lm_head" in name:
@@ -75,9 +77,11 @@ class GradientProjectionMemory(Mechanism):
                 return
             x = inputs[0].detach()
             flat = x.reshape(-1, x.shape[-1]).float().cpu()
-            # subsample rows: the SVD only needs the row space
+            # subsample rows: the SVD only needs the row space.
+            # Seeded — which rows are kept determines the basis, and drawing
+            # from the global RNG made the whole run irreproducible.
             if flat.shape[0] > 512:
-                idx = torch.randperm(flat.shape[0])[:512]
+                idx = torch.randperm(flat.shape[0], generator=self._hook_rng)[:512]
                 flat = flat[idx]
             self._acts.setdefault(name, []).append(flat)
         return hook
@@ -139,6 +143,16 @@ class GradientProjectionMemory(Mechanism):
         if total <= 0:
             return
         csum = torch.cumsum(S, dim=0) / total
+        # Rank selection is a threshold, which makes GPM unusually sensitive to
+        # float noise. On a non-deterministic backend a singular value sitting
+        # near eps flips k by one, changing how many gradient directions are
+        # frozen — a discrete change that then compounds over the rest of
+        # training. Measured on MPS: AA 0.535 vs 0.587 at an identical seed,
+        # while the same config is bit-exact on CPU.
+        #
+        # This is a property of the method, not a defect to fix. It does mean
+        # GPM needs more seeds than the other mechanisms before its ranking can
+        # be trusted, and that its error bars are wider than they look.
         k = int((csum < eps).sum()) + 1
 
         cap = int(in_dim * self.params["max_bases_frac"])

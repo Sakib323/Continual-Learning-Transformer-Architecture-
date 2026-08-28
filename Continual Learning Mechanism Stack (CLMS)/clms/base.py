@@ -26,6 +26,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 
+import zlib
+
 import torch
 import torch.nn as nn
 
@@ -111,6 +113,7 @@ class Mechanism:
         params.update({k: v for k, v in kwargs.items() if k != "enabled"})
         self.params = params
         self._ran = False
+        self._rng: torch.Generator | None = None
 
     def __repr__(self) -> str:
         return f"<{type(self).__name__} {self.name} surfaces={'/'.join(self.surfaces)}>"
@@ -211,6 +214,25 @@ class Mechanism:
         pass
 
     # ------------------------------------------------------------------
+    def rng(self, ctx: "RunContext") -> torch.Generator:
+        """Per-mechanism generator, derived from the run seed.
+
+        Mechanisms that draw randomness during *training* — GPM subsampling
+        activations for its basis, shrink-perturb injecting noise, CBP deciding
+        which units to reinitialise — must not use the global RNG. Doing so
+        makes a run irreproducible at a fixed seed: GPM was measured at
+        AA 0.243 vs 0.538 across two runs of the same config, a spread larger
+        than most mechanisms' entire effect, and one that seed-to-seed error
+        bars cannot see because it lives *within* a seed.
+
+        Offset by a hash of the mechanism name so two mechanisms in one stack do
+        not draw the identical sequence.
+        """
+        if self._rng is None:
+            offset = zlib.crc32(self.name.encode()) % 100_000
+            self._rng = torch.Generator().manual_seed(ctx.seed + offset)
+        return self._rng
+
     def mark_ran(self) -> None:
         self._ran = True
 

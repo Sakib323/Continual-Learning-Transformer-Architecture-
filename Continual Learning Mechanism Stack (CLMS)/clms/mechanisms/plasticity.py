@@ -46,7 +46,9 @@ class ShrinkAndPerturb(Mechanism):
         for p in model.parameters():
             if p.requires_grad and p.dim() > 1:
                 p.mul_(self.params["shrink"])
-                p.add_(torch.randn_like(p) * self.params["noise_std"] * p.abs().mean())
+                noise = torch.randn(p.shape, generator=self.rng(ctx),
+                                    dtype=p.dtype).to(p.device)
+                p.add_(noise * self.params["noise_std"] * p.abs().mean())
         self._applied += 1
         self.mark_ran()
 
@@ -144,8 +146,9 @@ class ContinualBackprop(Mechanism):
             util = self.util[idx] / bias_correction
 
             n_units = util.numel()
+            draw = float(torch.rand(1, generator=self.rng(ctx)).item())
             n_replace = max(1, int(n_units * self.params["rho"])) if \
-                torch.rand(1).item() < n_units * self.params["rho"] else 0
+                draw < n_units * self.params["rho"] else 0
             if n_replace == 0:
                 continue
 
