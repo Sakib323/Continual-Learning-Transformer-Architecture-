@@ -21,6 +21,12 @@ Why these columns:
         task's chance baseline. Positive means earlier tasks helped.
   sig   signature probes passed / attempted. A mechanism can score well without
         having done the thing its paper describes; this is the independent check.
+  MB    persistent state the mechanism carries between tasks — replay buffers,
+        Fisher matrices, projection bases, adapter weights. Scoring a method
+        that stores 56GB against one that stores nothing, and calling the first
+        better, compares budgets rather than mechanisms.
+  rho/MB  retention bought per megabyte retained. Mechanisms that store nothing
+        are reported as "free" rather than as an infinite ratio.
 """
 
 from __future__ import annotations
@@ -69,7 +75,13 @@ def summarise(runs: dict[str, list[dict]]) -> dict:
         aa = [r["metrics"]["AA"] for r in rs]
         sok = sum(1 for r in rs for s in r.get("signatures", []) if s["passed"])
         stot = sum(1 for r in rs for s in r.get("signatures", []))
+        state = mean([
+            sum((c.get("buffer_bytes") or 0) + (c.get("added_params") or 0) * 4
+                for c in r.get("costs", {}).values())
+            for r in rs
+        ]) / 1e6
         rows[name] = {
+            "state_mb": state,
             "aa": mean(aa),
             "sd": st.stdev(aa) if len(aa) > 1 else 0.0,
             "la": mean([learning_accuracy(r["matrix"]["A"]) for r in rs]) / ctrl_la,
@@ -130,7 +142,8 @@ def main() -> None:
              else [(n, r) for n, r in best_per_family(cur["rows"]).values()])
     ordered = sorted(items, key=lambda kv: -kv[1]["aa"])
 
-    hdr = f"{'mechanism':<26}{'rho':>7}{'±sd':>7}{'LA%':>6}{'FM':>7}{'FWT':>8}{'sig':>7}"
+    hdr = (f"{'mechanism':<26}{'rho':>7}{'±sd':>7}{'LA%':>6}{'FM':>7}{'FWT':>8}"
+           f"{'sig':>7}{'MB':>9}{'rho/MB':>9}")
     if prev:
         hdr += f"{'Δrho':>8}"
     print(hdr + "   verdict")
@@ -140,8 +153,10 @@ def main() -> None:
         rho = (r["aa"] - cur["floor"]) / cur["span"]
         rsd = r["sd"] / cur["span"]
         sig = f"{r['sig'][0]}/{r['sig'][1]}" if r["sig"][1] else "none"
+        mb = r["state_mb"]
+        per = "free" if mb < 1e-6 else (f"{rho / mb:9.3f}" if rho > 0 else "     -")
         line = (f"{name:<26}{rho:7.3f}{rsd:7.3f}{r['la']:6.0%}{r['fm']:7.3f}"
-                f"{r['fwt']:8.3f}{sig:>7}")
+                f"{r['fwt']:8.3f}{sig:>7}{mb:9.1f}{per:>9}")
         if prev:
             pr = prev["rows"].get(name)
             if pr:
@@ -156,6 +171,13 @@ def main() -> None:
         print(f"\nNo signature probe defined ({len(missing)}): "
               f"{', '.join(sorted({m.split('[')[0] for m in missing}))}")
         print("  -> score with no independent check that the mechanism engaged.")
+
+    free = [(n, (r["aa"] - cur["floor"]) / cur["span"])
+            for n, r in cur["rows"].items() if r["state_mb"] < 1e-6]
+    if free:
+        best_free = max(free, key=lambda kv: kv[1])
+        print(f"\nBest mechanism storing NOTHING: {best_free[0]} at rho {best_free[1]:.3f}")
+        print("  -> the bar any stateful mechanism has to clear to justify its cost.")
 
     fwts = [r["fwt"] for r in cur["rows"].values() if not math.isnan(r["fwt"])]
     if fwts:

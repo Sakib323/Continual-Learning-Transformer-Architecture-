@@ -25,6 +25,7 @@ from clms import config as cfgmod                          # noqa: E402
 from clms.base import Mechanism                            # noqa: E402
 from clms.data import (                                    # noqa: E402
     TaskStream, build_task_sequence, TASK_BUILDERS, DEFAULT_SEQUENCE,
+    CLEAN_SEQUENCE, LONG_SEQUENCE,
 )
 from clms.eval import AccuracyMatrix, recovery_ratio       # noqa: E402
 from clms.eval.probes import effective_rank, linear_cka, update_concentration  # noqa: E402
@@ -315,7 +316,7 @@ def test_induction_cue_is_unique():
     how good the model is. The naive generator was ambiguous on 11.4% of
     sequences, which is invisible in the loss and looks like a hard task.
     """
-    task = [t for t in build_task_sequence() if t.name == "induction"][0]
+    task = build_task_sequence(["induction"])[0]
     g = torch.Generator().manual_seed(0)
     for _ in range(2000):
         inp, out = task.generate(g)
@@ -729,3 +730,29 @@ def test_two_mechanisms_do_not_share_a_random_stream():
     dg = [float(torch.rand(1, generator=g.rng(ctx)).item()) for _ in range(5)]
     ds = [float(torch.rand(1, generator=s.rng(ctx)).item()) for _ in range(5)]
     assert dg != ds, "mechanisms in one stack share a random stream"
+
+
+def test_task_variants_have_unique_names():
+    """Two tasks named the same in one stream silently overwrite each other.
+
+    The accuracy matrix is indexed by task_id so metrics survive, but the
+    per-task history dict is keyed by name — `copy` and `copy12` in the same
+    stream would leave only one entry, and the log would misreport which task
+    scored what.
+    """
+    for seq in (DEFAULT_SEQUENCE, CLEAN_SEQUENCE, LONG_SEQUENCE):
+        names = [t.name for t in build_task_sequence(seq)]
+        assert len(set(names)) == len(names), f"duplicate task name in {seq}"
+
+    all_names = [build_task_sequence([k])[0].name for k in TASK_BUILDERS]
+    assert len(set(all_names)) == len(all_names), "two builders produce the same name"
+
+
+def test_long_sequence_interleaves_families():
+    """Consecutive same-family tasks transfer, which hides interference."""
+    fams = []
+    for t in build_task_sequence(LONG_SEQUENCE):
+        base = t.name.rstrip("0123456789")
+        fams.append("sort" if base.startswith("sort") else base)
+    runs = [(f, i) for i, f in enumerate(fams) if i == 0 or fams[i - 1] != f]
+    assert len(runs) == len(fams), f"adjacent tasks share a family: {fams}"

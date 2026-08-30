@@ -70,25 +70,27 @@ def _rand_symbols(g: torch.Generator, n: int, hi: int = NUM_SYMBOLS) -> list[int
 
 
 # --- task constructors -----------------------------------------------------
-def make_copy(task_id: int, length: int = 8) -> Task:
+def make_copy(task_id: int, length: int = 8, name: str = "copy") -> Task:
     def gen(g):
         s = _rand_symbols(g, length)
         return s, list(s)
-    return Task("copy", task_id, gen, 2 * length + 5, chance=NUM_SYMBOLS ** -length)
+    return Task(name, task_id, gen, 2 * length + 5, chance=NUM_SYMBOLS ** -length)
 
 
-def make_reverse(task_id: int, length: int = 8) -> Task:
+def make_reverse(task_id: int, length: int = 8, name: str = "reverse") -> Task:
     def gen(g):
         s = _rand_symbols(g, length)
         return s, list(reversed(s))
-    return Task("reverse", task_id, gen, 2 * length + 5, chance=NUM_SYMBOLS ** -length)
+    return Task(name, task_id, gen, 2 * length + 5, chance=NUM_SYMBOLS ** -length)
 
 
-def make_sort(task_id: int, length: int = 8) -> Task:
+def make_sort(task_id: int, length: int = 8, descending: bool = False,
+              name: str | None = None) -> Task:
     def gen(g):
         s = _rand_symbols(g, length)
-        return s, sorted(s)
-    return Task("sort", task_id, gen, 2 * length + 5, chance=NUM_SYMBOLS ** -length)
+        return s, sorted(s, reverse=descending)
+    name = name or ("sortdesc" if descending else "sort")
+    return Task(name, task_id, gen, 2 * length + 5, chance=NUM_SYMBOLS ** -length)
 
 
 def make_modadd(task_id: int, modulus: int = 23) -> Task:
@@ -99,7 +101,7 @@ def make_modadd(task_id: int, modulus: int = 23) -> Task:
     return Task(f"modadd{modulus}", task_id, gen, 8, chance=1.0 / modulus)
 
 
-def make_kvrecall(task_id: int, n_pairs: int = 4) -> Task:
+def make_kvrecall(task_id: int, n_pairs: int = 4, name: str = "kvrecall") -> Task:
     def gen(g):
         keys = torch.randperm(NUM_SYMBOLS // 2, generator=g)[:n_pairs]
         vals = torch.randint(NUM_SYMBOLS // 2, NUM_SYMBOLS, (n_pairs,), generator=g)
@@ -110,10 +112,10 @@ def make_kvrecall(task_id: int, n_pairs: int = 4) -> Task:
         seq.append(sym(int(keys[q])))
         return seq, [sym(int(vals[q]))]
     # guessing among the n values present in the prompt
-    return Task("kvrecall", task_id, gen, 2 * n_pairs + 8, chance=1.0 / n_pairs)
+    return Task(name, task_id, gen, 2 * n_pairs + 8, chance=1.0 / n_pairs)
 
 
-def make_induction(task_id: int, length: int = 10) -> Task:
+def make_induction(task_id: int, length: int = 10, name: str = "induction") -> Task:
     """Pattern completion: the final token repeats an earlier one; answer with
     whatever followed that earlier occurrence.
 
@@ -133,19 +135,30 @@ def make_induction(task_id: int, length: int = 10) -> Task:
         s[-1] = trigger
         return s, [s[i + 1]]
     # guessing a symbol from the prompt
-    return Task("induction", task_id, gen, length + 6, chance=1.0 / (length - 1))
+    return Task(name, task_id, gen, length + 6, chance=1.0 / (length - 1))
 
 
 TASK_BUILDERS: dict[str, Callable[[int], Task]] = {
     "copy": lambda tid: make_copy(tid),
+    "copy4": lambda tid: make_copy(tid, 4, "copy4"),
+    "copy12": lambda tid: make_copy(tid, 12, "copy12"),
     "reverse": lambda tid: make_reverse(tid),
+    "reverse4": lambda tid: make_reverse(tid, 4, "reverse4"),
+    "reverse12": lambda tid: make_reverse(tid, 12, "reverse12"),
     "sort": lambda tid: make_sort(tid),
+    "sort4": lambda tid: make_sort(tid, 4, name="sort4"),
+    "sortdesc": lambda tid: make_sort(tid, 8, descending=True),
+    "sortdesc4": lambda tid: make_sort(tid, 4, descending=True, name="sortdesc4"),
+    "modadd7": lambda tid: make_modadd(tid, 7),
+    "modadd13": lambda tid: make_modadd(tid, 13),
+    "modadd17": lambda tid: make_modadd(tid, 17),
     "modadd23": lambda tid: make_modadd(tid, 23),
     "modadd31": lambda tid: make_modadd(tid, 31),
     "kvrecall": lambda tid: make_kvrecall(tid, 4),
-    "kvrecall2": lambda tid: make_kvrecall(tid, 2),
-    "induction": lambda tid: make_induction(tid, 10),
-    "induction6": lambda tid: make_induction(tid, 6),
+    "kvrecall2": lambda tid: make_kvrecall(tid, 2, "kvrecall2"),
+    "induction": lambda tid: make_induction(tid, 10, "induction"),
+    "induction6": lambda tid: make_induction(tid, 6, "induction6"),
+    "induction8": lambda tid: make_induction(tid, 8, "induction8"),
 }
 
 # The default sequence uses the easier retrieval variants.
@@ -165,6 +178,22 @@ DEFAULT_SEQUENCE = ["copy", "reverse", "sort", "modadd23", "induction6"]
 # Tasks with a verified clean ceiling at 24M. Use this if the easier retrieval
 # variants still fail the phase-0 gate on your hardware.
 CLEAN_SEQUENCE = ["copy", "reverse", "sort", "modadd23"]
+
+# A longer stream, for the mechanisms the five-task benchmark cannot test.
+#
+# The control shows *no* plasticity loss over five tasks — it learns the fourth
+# as well as the first — so kWTA, XdG, CBP, shrink-perturb and sparse-update are
+# being scored on a benchmark where the problem they solve never occurs. Their
+# rho of ~0 is the correct answer to a question nobody asked.
+#
+# Ordered to interleave families rather than group them: consecutive tasks from
+# the same family transfer, which suppresses the interference the benchmark is
+# supposed to measure.
+LONG_SEQUENCE = [
+    "copy", "modadd7", "reverse", "sort", "modadd13",
+    "induction6", "copy12", "sortdesc", "modadd23", "reverse12",
+    "induction8", "modadd31",
+]
 
 
 # ---------------------------------------------------------------------------

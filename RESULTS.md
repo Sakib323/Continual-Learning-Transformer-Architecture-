@@ -8,6 +8,11 @@ mechanism tuned over its own grid.
 RTX 2060. `floor 0.1495` (sequential fine-tuning), `ceiling 0.8336` (joint
 training), `span 0.6841`.
 
+`gpm`, `shrink_perturb` and `cbp` are reported from a later five-seed sweep
+(`floor 0.1330`, `ceiling 0.8428`, `span 0.7098`) run after their randomness was
+seeded — see the reproducibility section. rho is normalised within each sweep,
+so the two are comparable; raw accuracy is not.
+
 **Reading the columns.**
 
 - **rho** — recovery ratio. 0 = no better than sequential fine-tuning, 1 =
@@ -27,14 +32,14 @@ training), `span 0.6841`.
 | **replay** | **1.004** | 0.019 | 101% | 0.007 | 3/3 | **matches joint training** |
 | **der** | **0.982** | 0.008 | 100% | 0.017 | 3/3 | **matches joint training** |
 | ewc | 0.335 | 0.136 | **53%** | 0.073 | 3/3 | partial — buys retention with plasticity |
-| gpm | 0.207 | 0.054 | 100% | 0.674 | 3/3 | partial — keeps plasticity, weak retention |
+| gpm | 0.227 | 0.050 | 101% | 0.673 | 5/5 | partial — keeps plasticity, weak retention |
 | lwf | 0.077 | 0.028 | **56%** | 0.334 | 3/3 | marginal, and costs plasticity |
 | kwta | 0.043 | 0.076 | 99% | 0.808 | 3/3 | no effect |
 | memory_sparse | 0.019 | 0.066 | 100% | 0.833 | 6/6 | no effect |
 | si | 0.001 | 0.058 | 100% | 0.854 | none | no effect |
-| shrink_perturb | −0.018 | 0.069 | 99% | 0.860 | none | no effect |
+| shrink_perturb | 0.027 | 0.046 | 100% | 0.847 | none | no effect |
 | xdg | −0.037 | 0.018 | 100% | 0.883 | 3/3 | harmful |
-| cbp | −0.081 | 0.008 | 99% | 0.906 | 3/3 | harmful |
+| cbp | −0.034 | 0.037 | 98% | 0.879 | 5/5 | no effect |
 | lora | −0.129 | 0.009 | **51%** | 0.456 | 3/3 | harmful |
 | olora | −0.178 | 0.011 | **38%** | 0.359 | 3/3 | harmful |
 | l2p | −0.207 | 0.003 | **26%** | 0.257 | 3/3 | harmful |
@@ -170,6 +175,20 @@ apparent 0.207 -> 0.324 improvement between sweeps was noise.
 Fixed with a per-mechanism seeded generator, offset by a hash of the mechanism
 name so stacked mechanisms do not share a stream. Verified: the same config is
 now **bit-exact on CPU** (dAA = 0.00000000).
+
+Re-measured with five seeds after the fix, all three land where the noise had
+been hiding them:
+
+| | before (3 seeds, unseeded) | after (5 seeds, seeded) | |
+|---|---|---|---|
+| gpm | 0.207 then 0.324 across two sweeps | **0.227 ± 0.050** | the 0.324 was noise |
+| cbp | −0.081, read as "harmful" | **−0.034 ± 0.037** | no effect, not harmful |
+| shrink_perturb | −0.018 | **0.027 ± 0.046** | no effect, unchanged verdict |
+
+The fix also recovered dose-response that the noise had buried. GPM's epsilon
+now orders sensibly (0.182 / 0.227 / 0.220 for 0.8 / 0.9 / 0.97) and CBP degrades
+monotonically as its replacement rate rises (−0.034 / −0.049 / −0.067). Neither
+trend was visible before.
 
 A residual remains on GPU (dAA 0.052 on MPS) and is *not* our code. GPM selects
 its basis rank by thresholding the cumulative singular-value spectrum, so float
