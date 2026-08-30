@@ -22,7 +22,16 @@ source .venv/bin/activate
 
 TASKS="copy,modadd7,reverse,sort,modadd13,induction6,copy12,sortdesc,modadd23,reverse12,induction8,modadd31"
 SEEDS="${SEEDS:-0,1,2}"
-COMMON="--seeds $SEEDS --set stream.scenario=class_il --set stream.tasks=$TASKS --set stream.eval_batches=2"
+# GPM picks its basis rank by thresholding a singular-value spectrum, so float
+# noise near the threshold flips the retained rank by one — a discrete change to
+# the constraint that then compounds. Its randomness is seeded (verified
+# bit-exact on CPU) but a GPU backend is not bit-reproducible, and GPM amplifies
+# that where other mechanisms absorb it: measured dAA 0.052 at an identical seed.
+# It needs more samples before its ranking can be trusted.
+GPM_SEEDS="${GPM_SEEDS:-0,1,2,3,4}"
+COMMON="--set stream.scenario=class_il --set stream.tasks=$TASKS --set stream.eval_batches=2"
+
+seeds_for() { [ "$1" = "gpm" ] && echo "$GPM_SEEDS" || echo "$SEEDS"; }
 
 # Track A — retention under interference, at full capacity.
 A_PRESETS=(ewc si gpm lwf lora olora l2p memory_layer memory_sparse sparse_update kwta cbp shrink_perturb)
@@ -38,14 +47,14 @@ banner() { printf '\n%s\n== %s\n%s\n' "$(printf '=%.0s' {1..70})" "$1" "$(printf
 banner "TRACK A — forgetting (small, 12 tasks, class_il)"
 for P in "${A_PRESETS[@]}"; do
   echo "[track A] $P"
-  python scripts/sweep.py --preset "$P" --tune $COMMON \
+  python scripts/sweep.py --preset "$P" --tune --seeds "$(seeds_for "$P")" $COMMON \
       --set model.size_preset=small --set run.out_dir=runs_A 2>&1 | tee -a sweep_A.log
 done
 
 banner "TRACK B — plasticity (nano, 12 tasks, class_il)"
 for P in "${B_PRESETS[@]}"; do
   echo "[track B] $P"
-  python scripts/sweep.py --preset "$P" --tune $COMMON \
+  python scripts/sweep.py --preset "$P" --tune --seeds "$(seeds_for "$P")" $COMMON \
       --set model.size_preset=nano --set run.out_dir=runs_B 2>&1 | tee -a sweep_B.log
 done
 
