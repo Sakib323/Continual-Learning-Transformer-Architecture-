@@ -2,7 +2,7 @@
 # Unattended two-track benchmark. Start it and walk away.
 #
 #   bash scripts/run_benchmark.sh
-#   AUTO_STOP=1 bash scripts/run_benchmark.sh      # power off when finished
+#   SEEDS=0,1 bash scripts/run_benchmark.sh        # cheaper, two seeds
 #
 # Runs track A, then track B, then writes both reports and a tarball, without
 # needing anyone at the keyboard between stages.
@@ -71,11 +71,7 @@ banner "DONE in $((elapsed / 3600))h $(((elapsed % 3600) / 60))m — results.tar
 echo "Retrieve with:"
 echo "  scp -P <PORT> root@<HOST>:$REPO/results.tar.gz ~/Downloads/"
 
-if [ "${AUTO_STOP:-0}" = "1" ]; then
-  echo
-  echo "AUTO_STOP set — powering off in 120s. Results are on disk and survive a"
-  echo "vast.ai *stop*; they do NOT survive a *destroy*. Ctrl-C to cancel."
-  sleep 120
-  poweroff 2>/dev/null || shutdown -h now 2>/dev/null || \
-    echo "could not power off from inside the container — stop it from the vast.ai UI"
-fi
+# Deliberately no auto-stop. Powering off from inside a container is
+# best-effort and the failure mode is losing a 12-hour run before it can be
+# copied off. Stop or destroy the instance yourself once results.tar.gz is on
+# your laptop.
