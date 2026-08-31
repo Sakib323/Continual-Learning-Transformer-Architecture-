@@ -225,6 +225,13 @@ TUNING_GRIDS: dict[str, dict[str, list[Any]]] = {
     "olora":          {"mech.olora.lam": [0.05, 0.5, 5.0]},
     "l2p":            {"mech.l2p.pool_size": [10, 20, 40]},
     "memory_sparse":  {"mech.sparse_update.slot_frac": [0.01, 0.03, 0.10]},
+    # These two ran a single configuration while every other mechanism got three
+    # or four. Because the report shows each mechanism's *best* grid point, a
+    # larger grid takes more draws from its own noise and keeps the maximum —
+    # worth roughly half a standard deviation, which is the size of the gaps
+    # between mechanisms. Equal tries, or the comparison is not a comparison.
+    "sparse_update":  {"mech.sparse_update.neuron_frac": [0.05, 0.1, 0.2]},
+    "memory_layer":   {"mech.memory_layer.topk": [8, 16, 32]},
 }
 
 

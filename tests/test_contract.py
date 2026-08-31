@@ -756,3 +756,26 @@ def test_long_sequence_interleaves_families():
         fams.append("sort" if base.startswith("sort") else base)
     runs = [(f, i) for i, f in enumerate(fams) if i == 0 or fams[i - 1] != f]
     assert len(runs) == len(fams), f"adjacent tasks share a family: {fams}"
+
+
+def test_every_swept_mechanism_has_a_comparable_grid():
+    """Uneven grid sizes are a selection advantage, not a better mechanism.
+
+    The report shows each mechanism's *best* grid point, so a four-point grid
+    takes four draws from its own noise and keeps the maximum while a one-point
+    grid takes one. At the observed spreads that is worth roughly half a
+    standard deviation — the same size as the gaps between mechanisms.
+    sparse_update and memory_layer ran a single configuration against everyone
+    else's three or four before this was caught.
+    """
+    swept = [p for p in cfgmod.PRESETS
+             if not p.startswith("control") and p not in ("stack_rsp", "replay", "der")]
+    sizes = {}
+    for p in swept:
+        grid = cfgmod.TUNING_GRIDS.get(p)
+        sizes[p] = max((len(v) for v in grid.values()), default=1) if grid else 1
+
+    ungridded = [p for p, n in sizes.items() if n < 3]
+    assert not ungridded, (
+        f"these get fewer tries than the rest, which flatters the others: {ungridded}"
+    )

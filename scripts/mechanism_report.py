@@ -27,6 +27,13 @@ Why these columns:
         better, compares budgets rather than mechanisms.
   rho/MB  retention bought per megabyte retained. Mechanisms that store nothing
         are reported as "free" rather than as an infinite ratio.
+  n     seeds completed. A single-seed row reports sd 0.000, which reads as
+        perfect precision and is in fact one unreplicated run — so n is shown
+        and any row below the modal seed count is marked.
+  cfg   grid points searched. The table reports each mechanism's *best* point,
+        so a 4-point grid gets four draws from its own noise and keeps the
+        maximum. That is worth roughly half a standard deviation over a 1-point
+        grid, which is the same size as the gaps between mechanisms.
 """
 
 from __future__ import annotations
@@ -35,7 +42,7 @@ import argparse
 import json
 import math
 import statistics as st
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 
@@ -142,8 +149,12 @@ def main() -> None:
              else [(n, r) for n, r in best_per_family(cur["rows"]).values()])
     ordered = sorted(items, key=lambda kv: -kv[1]["aa"])
 
-    hdr = (f"{'mechanism':<26}{'rho':>7}{'±sd':>7}{'LA%':>6}{'FM':>7}{'FWT':>8}"
-           f"{'sig':>7}{'MB':>9}{'rho/MB':>9}")
+    # the mode, not the max: GPM deliberately draws extra seeds, and taking the
+    # max would flag every correctly-run mechanism as under-sampled
+    counts = Counter(r["n"] for r in cur["rows"].values())
+    modal_n = counts.most_common(1)[0][0] if counts else 0
+    hdr = (f"{'mechanism':<26}{'rho':>7}{'±sd':>7}{'n':>3}{'LA%':>6}{'FM':>7}"
+           f"{'FWT':>8}{'sig':>7}{'MB':>9}{'rho/MB':>9}")
     if prev:
         hdr += f"{'Δrho':>8}"
     print(hdr + "   verdict")
@@ -155,8 +166,9 @@ def main() -> None:
         sig = f"{r['sig'][0]}/{r['sig'][1]}" if r["sig"][1] else "none"
         mb = r["state_mb"]
         per = "free" if mb < 1e-6 else (f"{rho / mb:9.3f}" if rho > 0 else "     -")
-        line = (f"{name:<26}{rho:7.3f}{rsd:7.3f}{r['la']:6.0%}{r['fm']:7.3f}"
-                f"{r['fwt']:8.3f}{sig:>7}{mb:9.1f}{per:>9}")
+        nmark = f"{r['n']}" + ("!" if r["n"] < modal_n else "")
+        line = (f"{name:<26}{rho:7.3f}{rsd:7.3f}{nmark:>3}{r['la']:6.0%}"
+                f"{r['fm']:7.3f}{r['fwt']:8.3f}{sig:>7}{mb:9.1f}{per:>9}")
         if prev:
             pr = prev["rows"].get(name)
             if pr:
@@ -165,6 +177,21 @@ def main() -> None:
             else:
                 line += f"{'new':>8}"
         print(line + f"   {verdict(rho, rsd, r['la'], r['sig'], r['inert'])}")
+
+    thin = sorted({n.split("[")[0] for n, r in cur["rows"].items() if r["n"] < modal_n})
+    if thin:
+        print(f"\nFewer than {modal_n} seeds (marked !): {', '.join(thin)}")
+        print("  -> sd is not meaningful for these; do not rank them.")
+
+    grid = defaultdict(int)
+    for n in cur["rows"]:
+        grid[n.split("[")[0]] += 1
+    sizes = sorted(set(grid.values()))
+    if len(sizes) > 1:
+        print(f"\nUneven grid sizes {sizes}: " + ", ".join(
+            f"{m}={c}" for m, c in sorted(grid.items(), key=lambda kv: kv[1])))
+        print("  -> the table shows each mechanism's BEST point, so a larger grid")
+        print("     is a selection advantage, not a better mechanism.")
 
     missing = [n for n, r in cur["rows"].items() if not r["sig"][1]]
     if missing:
