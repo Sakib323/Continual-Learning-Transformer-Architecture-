@@ -218,6 +218,17 @@ def main() -> None:
         print(f"\nBest mechanism storing NOTHING: {best_free[0]} at rho {best_free[1]:.3f}")
         print("  -> the bar any stateful mechanism has to clear to justify its cost.")
 
+    all_dev = {d for r in cur["rows"].values() for d in r["devices"]}
+    all_gpu = {g for r in cur["rows"].values() for g in r["gpus"]}
+    if len(all_dev) > 1 or len(all_gpu) > 1:
+        print(f"\n!! MIXED HARDWARE — devices {sorted(all_dev)} gpus {sorted(all_gpu)}")
+        print("   rho normalises against controls, so mechanisms measured on one")
+        print("   device and controls on another are not comparable. Identify the")
+        print("   odd rows and re-run them before ranking anything.")
+        for n, r in sorted(cur["rows"].items()):
+            if r["devices"] != {"cuda"} or len(r["gpus"]) > 1:
+                print(f"     {n}: devices={sorted(r['devices'])} gpus={sorted(r['gpus'])}")
+
     fwts = [r["fwt"] for r in cur["rows"].values() if not math.isnan(r["fwt"])]
     if fwts:
         print(f"\nForward transfer across all mechanisms: "
