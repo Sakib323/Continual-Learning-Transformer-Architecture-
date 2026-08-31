@@ -35,10 +35,13 @@ seeds_for() { [ "$1" = "gpm" ] && echo "$GPM_SEEDS" || echo "$SEEDS"; }
 
 # Track A — retention under interference, at full capacity.
 A_PRESETS=(ewc si gpm lwf lora olora l2p memory_layer memory_sparse sparse_update kwta cbp shrink_perturb)
-# Track B — plasticity, at a capacity that actually saturates. Measured: at nano
-# over 12 tasks, modadd accuracy collapses 1.00 -> 0.04 by position, while at
-# `small` there is no decay at all. Scoring the plasticity family on a stream
-# with no plasticity loss was the unfair part.
+# Track B — plasticity, at a capacity small enough that the network saturates.
+# The five-task stream showed no plasticity decay at all, so the plasticity
+# family was being scored on a benchmark where their problem never occurs; a
+# longer stream on a smaller model is the setting where it should appear.
+# Whether it actually does is measured by the Track B controls, not assumed —
+# if their span collapses, this track proves nothing and should be rerun at a
+# different capacity.
 B_PRESETS=(cbp shrink_perturb kwta gpm ewc si sparse_update)
 
 started=$(date -u +%s)
