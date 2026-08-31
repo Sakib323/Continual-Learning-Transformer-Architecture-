@@ -96,6 +96,8 @@ def summarise(runs: dict[str, list[dict]]) -> dict:
             "fwt": mean([r["metrics"].get("FWT") for r in rs]),
             "sig": (sok, stot),
             "inert": any(r.get("inert_mechanisms") for r in rs),
+            "devices": {r.get("device", "?") for r in rs},
+            "gpus": {r.get("gpu") for r in rs if r.get("gpu")},
             "n": len(rs),
         }
     return {"floor": floor, "ceiling": ceil, "span": span, "rows": rows}
@@ -177,6 +179,16 @@ def main() -> None:
             else:
                 line += f"{'new':>8}"
         print(line + f"   {verdict(rho, rsd, r['la'], r['sig'], r['inert'])}")
+
+    # A GPU that faults mid-sweep sends later runs to CPU, which then finish
+    # normally and land in the same directory. rho normalises across hardware
+    # only when floor and ceiling came from the *same* hardware.
+    all_dev = set().union(*(r["devices"] for r in cur["rows"].values())) if cur["rows"] else set()
+    all_gpu = set().union(*(r["gpus"] for r in cur["rows"].values())) if cur["rows"] else set()
+    if len(all_dev) > 1 or len(all_gpu) > 1:
+        print(f"\n!! MIXED HARDWARE in one sweep: devices={sorted(all_dev)} "
+              f"gpus={sorted(all_gpu)}")
+        print("   These runs are not comparable. Re-run the odd ones out.")
 
     thin = sorted({n.split("[")[0] for n, r in cur["rows"].items() if r["n"] < modal_n})
     if thin:

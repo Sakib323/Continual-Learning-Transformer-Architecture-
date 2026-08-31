@@ -50,13 +50,31 @@ from olmo2_cl import Olmo2Config, build_model              # noqa: E402
 
 # ---------------------------------------------------------------------------
 def pick_device(requested: str) -> str:
+    """Resolve the device, refusing a silent downgrade to CPU.
+
+    A GPU that dies mid-sweep takes CUDA down with it, and every subsequent run
+    then resolves to "cpu" and completes normally — 20x slower, and recorded
+    with a different `device` than its neighbours. Observed: an `unspecified
+    launch failure` during one run, after which the sweep carried on writing
+    CPU results into the same directory as GPU ones. Comparing across those is
+    the hardware-inconsistency problem this harness warns about everywhere else.
+
+    Set CLMS_ALLOW_CPU=1 to run on CPU deliberately.
+    """
     if requested != "auto":
         return requested
     if torch.cuda.is_available():
         return "cuda"
     if torch.backends.mps.is_available():
         return "mps"
-    return "cpu"
+    if os.environ.get("CLMS_ALLOW_CPU") == "1":
+        return "cpu"
+    raise SystemExit(
+        "no GPU available and CLMS_ALLOW_CPU is not set.\n"
+        "  If a sweep was running, the GPU probably faulted — check dmesg or\n"
+        "  nvidia-smi. Continuing on CPU would produce results that are not\n"
+        "  comparable with the GPU runs already in this directory."
+    )
 
 
 def set_seed(seed: int) -> None:
@@ -126,10 +144,16 @@ def evaluate_all(model, stream, upto: int, device: str, matrix: AccuracyMatrix,
 
     Safe to fill: AA, FM, BWT and LA are all index-bounded to the seen region
     rather than relying on future cells being NaN, so this is strictly additive.
-    Costs one extra evaluation per unseen task per boundary.
+
+    Only ONE task ahead is evaluated, not every remaining one. FWT reads
+    A[j-1][j] — accuracy on task j the moment before training on it — so the
+    rest of the upper triangle costs evaluations and answers nothing. On the
+    12-task stream that was 144 evaluations per run against the 89 actually
+    needed, and it is why runs took 11.6 minutes against a 5.4-minute estimate
+    that counted only training steps.
     """
     accs = {}
-    last = len(stream.tasks) - 1 if eval_future else upto
+    last = min(upto + 1, len(stream.tasks) - 1) if eval_future else upto
     for j in range(last + 1):
         task = stream.tasks[j]
         acc = sequence_accuracy(
