@@ -31,8 +31,8 @@ PAD, BOS, EOS, SEP = 0, 1, 2, 3
 TASK_TOKEN_START = 4
 MAX_TASKS = 16
 DATA_START = TASK_TOKEN_START + MAX_TASKS   # 20
-NUM_SYMBOLS = 64                            # data symbols 20..83
-VOCAB_SIZE = DATA_START + NUM_SYMBOLS       # 84 -> round up in config to 128
+NUM_SYMBOLS = 108                           # data symbols 20..127
+VOCAB_SIZE = DATA_START + NUM_SYMBOLS       # 128, matching model.vocab_size
 
 
 def sym(i: int) -> int:
@@ -65,40 +65,75 @@ class Task:
         return seq, labels
 
 
-def _rand_symbols(g: torch.Generator, n: int, hi: int = NUM_SYMBOLS) -> list[int]:
-    return [sym(int(v)) for v in torch.randint(0, hi, (n,), generator=g)]
+def _rand_symbols(g: torch.Generator, n: int, hi: int = NUM_SYMBOLS,
+                  lo: int = 0) -> list[int]:
+    return [sym(int(v)) for v in torch.randint(lo, hi, (n,), generator=g)]
+
+
+# --- class_il decidability -------------------------------------------------
+# Without a task token the model sees only <input> [SEP] and must produce
+# <output>. Tasks accepting the same input shape then contradict each other:
+# `copy`, `reverse`, `sort`, `sortdesc` and `induction8` all take eight random
+# symbols and demand five different answers. Measured, that capped joint
+# training at 0.45 against an oracle bound of 0.33 — the benchmark was scoring
+# how well the model guessed which task it had been handed.
+#
+# Giving colliding tasks disjoint symbol ranges makes the task inferable from
+# the input, which is both decidable and realistic: different topics genuinely
+# use different vocabulary. Ranges only need to be disjoint *within* a group
+# that shares an input shape, so they are reused across groups.
+SYMBOL_RANGES: dict[str, tuple[int, int]] = {
+    # length 2 — the four moduli must not overlap
+    "modadd7": (0, 7), "modadd13": (7, 20),
+    "modadd23": (20, 43), "modadd31": (43, 74),
+    # length 8
+    "copy": (0, 20), "reverse": (20, 40), "sort": (40, 60),
+    "sortdesc": (60, 80), "induction8": (80, 108),
+    # length 12
+    "copy12": (0, 54), "reverse12": (54, 108),
+    # length 6 — alone in its shape, so it may use everything
+    "induction6": (0, 108),
+}
 
 
 # --- task constructors -----------------------------------------------------
 def make_copy(task_id: int, length: int = 8, name: str = "copy") -> Task:
+    lo, hi = SYMBOL_RANGES.get(name, (0, NUM_SYMBOLS))
     def gen(g):
-        s = _rand_symbols(g, length)
+        s = _rand_symbols(g, length, hi, lo)
         return s, list(s)
-    return Task(name, task_id, gen, 2 * length + 5, chance=NUM_SYMBOLS ** -length)
+    return Task(name, task_id, gen, 2 * length + 5, chance=(hi - lo) ** -length)
 
 
 def make_reverse(task_id: int, length: int = 8, name: str = "reverse") -> Task:
+    lo, hi = SYMBOL_RANGES.get(name, (0, NUM_SYMBOLS))
     def gen(g):
-        s = _rand_symbols(g, length)
+        s = _rand_symbols(g, length, hi, lo)
         return s, list(reversed(s))
-    return Task(name, task_id, gen, 2 * length + 5, chance=NUM_SYMBOLS ** -length)
+    return Task(name, task_id, gen, 2 * length + 5, chance=(hi - lo) ** -length)
 
 
 def make_sort(task_id: int, length: int = 8, descending: bool = False,
               name: str | None = None) -> Task:
-    def gen(g):
-        s = _rand_symbols(g, length)
-        return s, sorted(s, reverse=descending)
     name = name or ("sortdesc" if descending else "sort")
-    return Task(name, task_id, gen, 2 * length + 5, chance=NUM_SYMBOLS ** -length)
+    lo, hi = SYMBOL_RANGES.get(name, (0, NUM_SYMBOLS))
+    def gen(g):
+        s = _rand_symbols(g, length, hi, lo)
+        return s, sorted(s, reverse=descending)
+    return Task(name, task_id, gen, 2 * length + 5, chance=(hi - lo) ** -length)
 
 
 def make_modadd(task_id: int, modulus: int = 23) -> Task:
+    # Every modadd takes two symbols, so in class_il they are indistinguishable
+    # unless their operand ranges are disjoint. The offset is what separates
+    # "add mod 7" from "add mod 31" when there is no task token to say which.
+    name = f"modadd{modulus}"
+    lo, _ = SYMBOL_RANGES.get(name, (0, NUM_SYMBOLS))
     def gen(g):
         a = int(torch.randint(0, modulus, (1,), generator=g))
         b = int(torch.randint(0, modulus, (1,), generator=g))
-        return [sym(a), sym(b)], [sym((a + b) % modulus)]
-    return Task(f"modadd{modulus}", task_id, gen, 8, chance=1.0 / modulus)
+        return [sym(lo + a), sym(lo + b)], [sym(lo + (a + b) % modulus)]
+    return Task(name, task_id, gen, 8, chance=1.0 / modulus)
 
 
 def make_kvrecall(task_id: int, n_pairs: int = 4, name: str = "kvrecall") -> Task:
@@ -124,14 +159,15 @@ def make_induction(task_id: int, length: int = 10, name: str = "induction") -> T
     answer is undecidable from the input — measured at 11.4% of sequences in the
     naive version, which caps accuracy no matter how good the model is.
     """
+    lo, hi = SYMBOL_RANGES.get(name, (0, NUM_SYMBOLS))
     def gen(g):
-        s = _rand_symbols(g, length)
+        s = _rand_symbols(g, length, hi, lo)
         i = int(torch.randint(0, length - 3, (1,), generator=g))
         trigger = s[i]
         # strip every other occurrence so exactly one cue remains
         for j in range(length - 1):
             while j != i and s[j] == trigger:
-                s[j] = sym(int(torch.randint(0, NUM_SYMBOLS, (1,), generator=g)))
+                s[j] = sym(int(torch.randint(lo, hi, (1,), generator=g)))
         s[-1] = trigger
         return s, [s[i + 1]]
     # guessing a symbol from the prompt

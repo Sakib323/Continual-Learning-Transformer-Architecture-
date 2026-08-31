@@ -779,3 +779,55 @@ def test_every_swept_mechanism_has_a_comparable_grid():
     assert not ungridded, (
         f"these get fewer tries than the rest, which flatters the others: {ungridded}"
     )
+
+
+def test_long_stream_is_decidable_without_a_task_token():
+    """class_il removes the task token, so the input alone must identify the task.
+
+    Tasks sharing an input shape otherwise contradict each other: `copy`,
+    `reverse`, `sort`, `sortdesc` and `induction8` all take eight random symbols
+    and demand five different answers. Measured, that capped joint training at
+    0.4513 against a guessing bound of 0.3333 — a whole sweep spent scoring how
+    well the model guessed which task it had been handed.
+
+    Disjoint symbol ranges within each input shape make the task inferable.
+    """
+    from clms.data.synthetic import DATA_START
+
+    tasks = build_task_sequence(LONG_SEQUENCE)
+    g = torch.Generator().manual_seed(0)
+
+    shape_to_ranges: dict[int, list[tuple[str, set]]] = {}
+    for t in tasks:
+        seen_syms, length = set(), None
+        for _ in range(200):
+            inp, _ = t.generate(g)
+            length = len(inp)
+            seen_syms |= {v - DATA_START for v in inp}
+        shape_to_ranges.setdefault(length, []).append((t.name, seen_syms))
+
+    for length, entries in shape_to_ranges.items():
+        for i in range(len(entries)):
+            for j in range(i + 1, len(entries)):
+                (na, sa), (nb, sb) = entries[i], entries[j]
+                assert not (sa & sb), (
+                    f"'{na}' and '{nb}' both take {length} symbols and share "
+                    f"vocabulary {sorted(sa & sb)[:5]} — in class_il the model "
+                    f"cannot tell which task it was given"
+                )
+
+
+def test_no_input_maps_to_two_different_answers_across_the_stream():
+    """The empirical version: one input, one answer, stream-wide."""
+    tasks = build_task_sequence(LONG_SEQUENCE)
+    g = torch.Generator().manual_seed(1)
+    seen: dict[tuple, tuple] = {}
+    for _ in range(300):
+        for t in tasks:
+            inp, out = t.generate(g)
+            k = tuple(inp)
+            if k in seen:
+                assert seen[k] == tuple(out), (
+                    f"input {k[:4]}... demands two different answers"
+                )
+            seen[k] = tuple(out)
