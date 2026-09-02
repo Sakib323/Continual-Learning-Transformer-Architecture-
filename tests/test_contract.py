@@ -831,3 +831,52 @@ def test_no_input_maps_to_two_different_answers_across_the_stream():
                     f"input {k[:4]}... demands two different answers"
                 )
             seen[k] = tuple(out)
+
+
+def test_gpm_saturation_probe_fires_before_the_cap():
+    """C2 must warn while GPM is degrading, not only once the basis is full.
+
+    Measured over twelve tasks: at 98% of `max_bases_frac` GPM scored rho
+    -0.047 — actively worse than doing nothing — and the old probe passed 5/5,
+    because it only tripped at the cap itself. The threshold now sits at 85% of
+    the cap, which is where the healthy configuration (72% of cap, rho +0.073)
+    separates from every degraded one.
+    """
+    from clms.mechanisms.projection import GradientProjectionMemory
+
+    m = GradientProjectionMemory()
+    cap = m.params["max_bases_frac"]
+    warn = cap * m.params["saturation_warn_frac"]
+    assert warn < cap, "warning must precede the cap, not coincide with it"
+
+    class _Layer:
+        def __init__(self, n): self.in_features = n
+
+    # 72% of cap -> the configuration that actually worked
+    m._layers = {"a": _Layer(100)}
+    m.bases = {"a": torch.zeros(100, int(100 * cap * 0.72))}
+    assert m.signature(None, None).passed, "healthy saturation must not warn"
+
+    # 98% of cap -> the configuration measured at rho -0.047
+    m.bases = {"a": torch.zeros(100, int(100 * cap * 0.98))}
+    sig = m.signature(None, None)
+    assert not sig.passed, "harmful saturation must warn before the cap"
+
+
+def test_gpm_records_its_saturation_trajectory():
+    """An eviction policy has to be designed against the shape of the curve.
+
+    A basis that fills linearly needs a different policy from one that jumps on
+    the first task, and only the per-task history distinguishes them.
+    """
+    from clms.mechanisms.projection import GradientProjectionMemory
+
+    m = GradientProjectionMemory()
+    assert m._saturation_history == []
+    m._saturation_history = [0.2, 0.4, 0.55]
+    state = m.state_dict()
+    restored = GradientProjectionMemory()
+    restored.load_state_dict(state)
+    assert restored._saturation_history == [0.2, 0.4, 0.55], (
+        "the trajectory must survive a resume, or a restarted sweep loses it"
+    )

@@ -46,6 +46,23 @@ class GradientProjectionMemory(Mechanism):
         "max_bases_frac": 0.75, # cap: never consume more than this of a layer
         "collect_batches": 4,
         "min_features": 8,
+        # C2 fires at this fraction of max_bases_frac, not at the cap itself.
+        # Measured: the mechanism is already harmful well before saturation —
+        # at 98% of cap rho was -0.047 while the probe still passed 5/5, because
+        # the old threshold only tripped once the basis was literally full.
+        #   72% of cap -> rho +0.073   healthy
+        #   97% of cap -> rho +0.058   degrading
+        #   98% of cap -> rho -0.047   harmful
+        #  100% of cap -> rho  0.001   plasticity gone
+        # 0.85 separates the healthy row from every degraded one.
+        "saturation_warn_frac": 0.85,
+        # Floor for the retention threshold. eps had an upper clamp but no lower
+        # one, which is harmless while eps_growth is positive and unsafe once it
+        # is not: at -0.01 the threshold goes negative by task 100, and a
+        # negative "fraction of variance to retain" is meaningless. An unbounded
+        # stream is the whole point of this project, so the floor is not
+        # hypothetical.
+        "eps_floor": 0.50,
     }
 
     def __init__(self, **kw):
@@ -57,6 +74,11 @@ class GradientProjectionMemory(Mechanism):
         self._handles: list = []
         self._collecting = False
         self._tasks_seen = 0
+        # saturation after each task boundary. The trajectory, not just the
+        # final value, is what an eviction policy has to be designed against:
+        # a basis that fills linearly needs a different policy from one that
+        # jumps on the first task.
+        self._saturation_history: list[float] = []
         self._last_grads: dict[int, torch.Tensor] = {}
 
     # ------------------------------------------------------------------
@@ -117,7 +139,10 @@ class GradientProjectionMemory(Mechanism):
 
         eps = min(
             0.99,
-            self.params["eps_base"] + self.params["eps_growth"] * self._tasks_seen,
+            max(
+                self.params["eps_floor"],
+                self.params["eps_base"] + self.params["eps_growth"] * self._tasks_seen,
+            ),
         )
         for name, parts in self._acts.items():
             R = torch.cat(parts, dim=0)               # (samples, in_dim)
@@ -126,6 +151,16 @@ class GradientProjectionMemory(Mechanism):
             self._extend_basis(name, R, eps)
         self._acts.clear()
         self._tasks_seen += 1
+        self._saturation_history.append(self._consumed_fraction())
+
+    def _consumed_fraction(self) -> float:
+        """Mean over layers of (directions frozen) / (directions available)."""
+        consumed = []
+        for name, M in self.bases.items():
+            layer = self._layers.get(name)
+            if layer is not None:
+                consumed.append(M.shape[1] / layer.in_features)
+        return sum(consumed) / len(consumed) if consumed else 0.0
 
     def _extend_basis(self, name: str, R: torch.Tensor, eps: float) -> None:
         existing = self.bases.get(name)
@@ -204,14 +239,20 @@ class GradientProjectionMemory(Mechanism):
             in_dim = self._layers[name].in_features
             consumed.append(M.shape[1] / in_dim)
         frac = sum(consumed) / len(consumed)
+        warn_at = self.params["max_bases_frac"] * self.params["saturation_warn_frac"]
         return SignatureCheck(
             probe="C2",
             quantity="fraction of gradient directions consumed",
             value=frac,
-            baseline=self.params["max_bases_frac"],
+            baseline=warn_at,
             direction="decrease",
-            detail="rises monotonically with tasks; at the cap there is no free "
-                   "subspace left and plasticity is gone",
+            passed=frac < warn_at,
+            detail=(
+                f"fires at {warn_at:.3f} = {self.params['saturation_warn_frac']:.0%} "
+                f"of the {self.params['max_bases_frac']:.2f} cap. Waiting for the "
+                f"cap itself is too late: at 98% of it rho was -0.047 while the "
+                f"probe still passed."
+            ),
         )
 
     def cost_report(self) -> CostReport:
@@ -219,13 +260,18 @@ class GradientProjectionMemory(Mechanism):
         return CostReport(
             buffer_bytes=n * 4,
             notes={"basis_entries": n, "layers": len(self._layers),
-                   "tasks_seen": self._tasks_seen},
+                   "tasks_seen": self._tasks_seen,
+                   "saturation": round(self._consumed_fraction(), 4),
+                   "saturation_history":
+                       [round(v, 4) for v in self._saturation_history]},
         )
 
     def state_dict(self):
-        return {"bases": self.bases, "tasks_seen": self._tasks_seen}
+        return {"bases": self.bases, "tasks_seen": self._tasks_seen,
+                "saturation_history": self._saturation_history}
 
     def load_state_dict(self, state):
         state = to_cpu_tree(state)
         self.bases = state.get("bases", {})
         self._tasks_seen = state.get("tasks_seen", 0)
+        self._saturation_history = list(state.get("saturation_history", []))

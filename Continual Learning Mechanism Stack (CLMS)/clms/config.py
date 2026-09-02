@@ -177,6 +177,7 @@ PRESETS: dict[str, dict[str, Any]] = {
     "olora": {"olora": {"enabled": True}},
     "l2p": {"l2p": {"enabled": True}},
     "memory_layer": {"memory_layer": {"enabled": True}},
+    "gpm_growth": {"gpm": {"enabled": True, "eps_base": 0.8}},
     "sparse_update": {"sparse_update": {"enabled": True}},
     "memory_sparse": {
         "memory_layer": {"enabled": True},
@@ -232,6 +233,12 @@ TUNING_GRIDS: dict[str, dict[str, list[Any]]] = {
     # between mechanisms. Equal tries, or the comparison is not a comparison.
     "sparse_update":  {"mech.sparse_update.neuron_frac": [0.05, 0.1, 0.2]},
     "memory_layer":   {"mech.memory_layer.topk": [8, 16, 32]},
+    # Stage 1 of the GPM programme. eps_base is fixed at the one value measured
+    # non-saturating (0.8 -> 72% of cap, rho +0.073); the sweep is over the
+    # growth schedule alone, so a difference is attributable to it. +0.005 is
+    # the current default, which makes the baseline a row in the same sweep
+    # rather than a comparison across sweeps with different controls.
+    "gpm_growth":     {"mech.gpm.eps_growth": [-0.01, -0.005, 0.0, 0.005]},
 }
 
 
