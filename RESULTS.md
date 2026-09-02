@@ -1,5 +1,12 @@
 # Phase 3 — which mechanisms work
 
+> **Headline, Class-IL (the realistic setting): none of the thirteen
+> rehearsal-free mechanisms work.** Best is EWC at rho 0.104 +/- 0.065 over
+> twelve tasks, and it gets there by going rigid — 42% of the control's
+> plasticity. See "Class-IL: the decisive negative result" below. The Task-IL
+> table that follows is the easier scenario, where the model is told which task
+> each input belongs to.
+
 Fifteen continual-learning mechanisms across five injection surfaces, measured on
 a five-task algorithmic stream at 23.7M parameters, three seeds each, with each
 mechanism tuned over its own grid.
@@ -222,3 +229,70 @@ comparable across cards; rho is.
   rho here says they do not solve a problem they never claimed to.
 - **`si` and `shrink_perturb` have no signature probe**, so for those two there
   is a score without an independent check that the mechanism engaged.
+
+
+---
+
+# Class-IL: the decisive negative result
+
+227 runs, RTX 3060, one GPU throughout, zero crashes. Twelve tasks, decidable
+(disjoint symbol ranges per input shape), no task token at inference.
+
+**Track A** — retention at full capacity (`small`, 23.7M).
+`floor 0.0813  ceiling 0.8753  span +0.7940`
+
+| mechanism | rho | +/-sd | LA% | FM | verdict |
+|---|---|---|---|---|---|
+| ewc[lam=10] | 0.104 | 0.065 | **42%** | 0.179 | marginal |
+| gpm[eps=0.8] | 0.073 | 0.039 | 96% | 0.664 | marginal |
+| lwf[lam=0.1] | 0.060 | 0.050 | 90% | 0.620 | marginal |
+| memory_sparse | 0.051 | 0.064 | 98% | 0.699 | no effect |
+| shrink_perturb | 0.042 | 0.048 | 100% | 0.720 | no effect |
+| si, memory_layer, sparse_update, kwta | <=0.034 | | ~100% | ~0.75 | no effect |
+| cbp, l2p, lora, olora | negative | | 14-101% | | harmful |
+
+**Track B** — plasticity regime (`nano`, where the control loses 0.396 of its
+learning ability across the stream).
+`floor 0.0198  ceiling 0.7680  span +0.7482`
+
+| mechanism | rho | +/-sd | LA% | FM | verdict |
+|---|---|---|---|---|---|
+| ewc[lam=10] | 0.144 | 0.036 | **42%** | 0.186 | partial |
+| si[c=0.01] | 0.039 | 0.037 | 99% | 0.709 | marginal |
+| gpm[eps=0.8] | 0.026 | 0.014 | 82% | 0.587 | marginal |
+| kwta, shrink_perturb, cbp, sparse_update | <=0.013 | | 70-105% | | no effect |
+
+## Three things this settles
+
+**Rehearsal-free continual learning does not work here.** The best result
+recovers a tenth of the gap between sequential fine-tuning and joint training,
+and only EWC in Track B clears `rho - sd > 0.1`. Every mechanism passes its
+signature probes, so this is a statement about the methods, not the code.
+
+**EWC "wins" by declining to learn.** Its 42% LA means it retains what it has by
+refusing new tasks. That is the stability-plasticity trade taken to its limit,
+not a solution to it. AA is essentially LA - FM (correlation 0.987 in Track A,
+0.999 in Track B), so any mechanism can trade one for the other and none of them
+escape the exchange rate.
+
+**The plasticity family fails in the regime built to favour it.** Track B runs
+at a capacity where the control demonstrably loses plasticity (+0.396 decay).
+CBP, shrink-perturb, kWTA and sparse-update score 0.003, 0.012, 0.013 and -0.003
+there. Several do preserve plasticity — si at 109% of control, cbp at 105% — and
+it buys nothing, because plasticity was never the binding constraint. Forgetting
+was.
+
+## Forward transfer: none, anywhere
+
+Mean FWT of -0.055 across both tracks, every mechanism, every setting. Nothing
+learns a new task faster for having seen earlier ones. These methods can at best
+preserve what they had; none of them compound.
+
+## A signature probe earning its keep
+
+GPM failed C2 in Track B at eps 0.9 and 0.97 — 1/5 and 0/5 seeds — while passing
+5/5 in Track A at identical settings. The measured value is exactly 0.7500 in
+both failing cases, which is `max_bases_frac`: at nano the basis saturates its
+cap and freezes 75% of all gradient directions, collapsing LA to 74%. The scores
+are reported as untrustworthy rather than ranked, which is the difference
+between a benchmark and a leaderboard.
