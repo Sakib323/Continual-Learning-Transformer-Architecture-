@@ -880,3 +880,53 @@ def test_gpm_records_its_saturation_trajectory():
     assert restored._saturation_history == [0.2, 0.4, 0.55], (
         "the trajectory must survive a resume, or a restarted sweep loses it"
     )
+
+
+def test_aging_basis_stops_growing():
+    """The whole point of gpm_aging: occupancy must plateau, not ratchet.
+
+    Baseline GPM consumes gradient directions monotonically and never returns
+    any, so a long stream drives the free subspace to zero — measured, rho falls
+    from +0.073 at 59.5% occupancy to -0.047 at 98%. Eviction has to hold the
+    basis at its target however many tasks arrive.
+    """
+    from clms.mechanisms.projection import AgingGradientProjectionMemory
+
+    m = AgingGradientProjectionMemory(target_occupancy=0.40)
+
+    class _Layer:
+        def __init__(self, n): self.in_features = n
+
+    m._layers = {"a": _Layer(100)}
+    budget = int(100 * 0.40)
+
+    # a basis already over budget must be cut back to it
+    m.bases = {"a": torch.randn(100, 70)}
+    m._usage = {"a": torch.arange(70, dtype=torch.float)}
+    m._evict("a")
+    assert m.bases["a"].shape[1] == budget, "eviction must enforce the budget"
+    assert m._usage["a"].numel() == budget, "usage scores must stay aligned"
+    assert m._evicted_total == 70 - budget
+
+    # and it must keep the *most used* columns, not arbitrary ones
+    m.bases = {"a": torch.randn(100, 50)}
+    usage = torch.zeros(50)
+    usage[10:10 + budget] = 1.0          # only these are in use
+    m._usage = {"a": usage}
+    m._evict("a")
+    assert torch.all(m._usage["a"] == 1.0), "eviction dropped the used columns"
+
+
+def test_aging_basis_survives_a_resume():
+    """Usage scores must checkpoint, or a restarted run evicts the wrong columns."""
+    from clms.mechanisms.projection import AgingGradientProjectionMemory
+
+    m = AgingGradientProjectionMemory()
+    m.bases = {"a": torch.randn(8, 3)}
+    m._usage = {"a": torch.tensor([0.5, 0.1, 0.9])}
+    m._evicted_total = 7
+
+    restored = AgingGradientProjectionMemory()
+    restored.load_state_dict(m.state_dict())
+    assert torch.allclose(restored._usage["a"], m._usage["a"])
+    assert restored._evicted_total == 7

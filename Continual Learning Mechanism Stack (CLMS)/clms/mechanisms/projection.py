@@ -275,3 +275,123 @@ class GradientProjectionMemory(Mechanism):
         self.bases = state.get("bases", {})
         self._tasks_seen = state.get("tasks_seen", 0)
         self._saturation_history = list(state.get("saturation_history", []))
+
+
+@register
+class AgingGradientProjectionMemory(GradientProjectionMemory):
+    """GPM with a basis that forgets its own constraints.
+
+    Baseline GPM consumes gradient directions monotonically and never returns
+    any, so on a long stream the free subspace goes to zero and the model can no
+    longer learn. Measured over twelve tasks, that is the binding failure:
+
+        59.5% of cap consumed -> rho +0.073
+        97.8%                 -> rho +0.058
+        98.2%                 -> rho -0.047      actively harmful
+       100.0%                 -> rho  0.001      plasticity gone
+
+    This variant keeps a usage score per basis column, decays it at every task
+    boundary, and evicts the least-used columns once occupancy exceeds a target.
+    Consumption becomes a steady state rather than a ratchet.
+
+    Registered as a separate mechanism rather than an edit to `gpm` so the
+    harness compares them head to head with the same probes, costs and report,
+    and so the published GPM result stays intact.
+
+    Pre-registered failure: if saturation drops but rho does not improve, the
+    problem is not *how many* directions are held but *which* — which would
+    redirect the work to soft projection rather than to tuning eviction rates.
+    """
+
+    name = "gpm_aging"
+
+    defaults = {
+        **GradientProjectionMemory.defaults,
+        # Occupancy to hold. Eviction triggers above this, so the basis settles
+        # instead of filling. 0.40 sits below the 59.5% that still scored well,
+        # leaving headroom rather than tracking the edge of the measured cliff.
+        "target_occupancy": 0.40,
+        # How fast a column's usage score fades. 0.7 means a direction unused
+        # for three tasks retains ~a third of its score, so genuinely dead
+        # directions leave while recently-useful ones survive a quiet spell.
+        "usage_decay": 0.7,
+    }
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        # layer name -> (k,) tensor of per-column usage scores, aligned with
+        # the columns of self.bases[name]
+        self._usage: dict[str, torch.Tensor] = {}
+        self._evicted_total = 0
+
+    # ------------------------------------------------------------------
+    def _extend_basis(self, name: str, R: torch.Tensor, eps: float) -> None:
+        before = self.bases.get(name)
+        n_before = before.shape[1] if before is not None else 0
+
+        # score the *existing* columns against this task's activations before
+        # adding anything: a direction the current task still uses is alive
+        if before is not None and R.shape[0] > 1:
+            proj = R @ before                      # (samples, k)
+            fresh = proj.pow(2).sum(dim=0)         # energy per column
+            total = float(fresh.sum())
+            if total > 0:
+                fresh = fresh / total
+            prev = self._usage.get(name)
+            if prev is None or prev.numel() != n_before:
+                prev = torch.zeros(n_before, dtype=fresh.dtype)
+            self._usage[name] = prev * self.params["usage_decay"] + fresh.cpu()
+
+        super()._extend_basis(name, R, eps)
+
+        M = self.bases.get(name)
+        if M is None:
+            return
+        added = M.shape[1] - n_before
+        if added > 0:
+            # a brand-new direction starts at the mean of the surviving scores,
+            # not at zero — otherwise it is evicted before it can prove useful
+            u = self._usage.get(name)
+            seed_val = float(u.mean()) if u is not None and u.numel() else 1.0
+            new = torch.full((added,), seed_val)
+            self._usage[name] = new if u is None or u.numel() != n_before \
+                else torch.cat([u, new])
+
+        self._evict(name)
+
+    def _evict(self, name: str) -> None:
+        M = self.bases.get(name)
+        layer = self._layers.get(name)
+        if M is None or layer is None:
+            return
+        budget = int(layer.in_features * self.params["target_occupancy"])
+        k = M.shape[1]
+        if k <= budget:
+            return
+
+        usage = self._usage.get(name)
+        if usage is None or usage.numel() != k:
+            usage = torch.ones(k)
+        keep = torch.topk(usage, budget).indices.sort().values
+        self.bases[name] = M[:, keep].contiguous()
+        self._usage[name] = usage[keep].contiguous()
+        self._evicted_total += k - budget
+
+    # ------------------------------------------------------------------
+    def cost_report(self) -> CostReport:
+        rep = super().cost_report()
+        rep.notes["evicted_columns"] = self._evicted_total
+        rep.notes["target_occupancy"] = self.params["target_occupancy"]
+        return rep
+
+    def state_dict(self):
+        st = super().state_dict()
+        st["usage"] = self._usage
+        st["evicted_total"] = self._evicted_total
+        return st
+
+    def load_state_dict(self, state):
+        super().load_state_dict(state)
+        state = to_cpu_tree(state)
+        self._usage = state.get("usage", {})
+        self._evicted_total = state.get("evicted_total", 0)

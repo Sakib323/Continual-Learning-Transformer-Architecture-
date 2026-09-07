@@ -178,6 +178,7 @@ PRESETS: dict[str, dict[str, Any]] = {
     "l2p": {"l2p": {"enabled": True}},
     "memory_layer": {"memory_layer": {"enabled": True}},
     "gpm_growth": {"gpm": {"enabled": True, "eps_base": 0.8}},
+    "gpm_aging": {"gpm_aging": {"enabled": True, "eps_base": 0.8}},
     "sparse_update": {"sparse_update": {"enabled": True}},
     "memory_sparse": {
         "memory_layer": {"enabled": True},
@@ -239,6 +240,10 @@ TUNING_GRIDS: dict[str, dict[str, list[Any]]] = {
     # the current default, which makes the baseline a row in the same sweep
     # rather than a comparison across sweeps with different controls.
     "gpm_growth":     {"mech.gpm.eps_growth": [-0.01, -0.005, 0.0, 0.005]},
+    # Stage 2. Occupancy is the variable under test; usage_decay is held at its
+    # default so a difference is attributable to one thing. 0.75 reproduces the
+    # baseline cap, making unmodified GPM a row in the same sweep.
+    "gpm_aging":      {"mech.gpm_aging.target_occupancy": [0.25, 0.40, 0.55, 0.75]},
 }
 
 
