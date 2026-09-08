@@ -89,7 +89,7 @@ class ContinualBackprop(Mechanism):
     # Mechanisms that freeze the backbone leave nothing for CBP to recycle, and
     # GPM consumes gradient directions that CBP is trying to regenerate — the
     # two work against each other and any measured effect is unattributable.
-    conflicts = ("lora", "l2p", "olora", "gpm", "gpm_aging")
+    conflicts = ("lora", "l2p", "olora", "gpm", "gpm_aging", "gpm_soft")
     order = 85
 
     defaults = {

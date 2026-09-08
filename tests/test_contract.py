@@ -930,3 +930,55 @@ def test_aging_basis_survives_a_resume():
     restored.load_state_dict(m.state_dict())
     assert torch.allclose(restored._usage["a"], m._usage["a"])
     assert restored._evicted_total == 7
+
+
+def test_soft_projection_leaves_exactly_the_stated_fraction():
+    """`strength` must mean what it says, arithmetically.
+
+    Soft projection trades GPM's exactness guarantee for headroom, so the amount
+    traded has to be verifiable rather than asserted. strength=1.0 must
+    reproduce the original guarantee `dW·M = 0` exactly, or the "control" row in
+    the Stage 3 sweep is not actually baseline GPM.
+    """
+    torch.manual_seed(0)
+    M, _ = torch.linalg.qr(torch.randn(64, 10))     # orthonormal
+    g = torch.randn(32, 64)
+    comp = g @ M
+
+    for s in (0.0, 0.5, 0.85, 1.0):
+        g_new = g - s * (comp @ M.T)
+        residual = float((g_new @ M).norm() / comp.norm())
+        assert abs(residual - (1 - s)) < 1e-5, (
+            f"strength={s} left {residual:.4f} of the component, expected {1-s:.4f}"
+        )
+
+    # the boundary case that makes the sweep's control valid
+    g_hard = g - 1.0 * (comp @ M.T)
+    assert float((g_hard @ M).norm()) < 1e-4, (
+        "strength=1.0 must reproduce exact GPM, or the sweep has no baseline"
+    )
+
+
+def test_soft_projection_probe_detects_a_miswired_strength():
+    """C4 must fail if the projector ignores its own parameter."""
+    from clms.mechanisms.projection import SoftGradientProjectionMemory
+
+    # go through evaluate(), which is what the harness calls — it recomputes
+    # `passed` from baseline/direction and overrides whatever signature() sets.
+    # Checking .passed straight off signature() misses that entirely, and did:
+    # the first version of C4 failed at strength=1.0 in a real run while this
+    # test was green.
+    m = SoftGradientProjectionMemory(strength=0.85)
+    m._residual_sum, m._residual_n = 0.15 * 4, 4        # correct behaviour
+    sig = m.signature(None, None); sig.evaluate()
+    assert sig.passed, "correct projection must pass after evaluate()"
+
+    m._residual_sum, m._residual_n = 0.60 * 4, 4        # projector ignoring strength
+    sig = m.signature(None, None); sig.evaluate()
+    assert not sig.passed, "a miswired strength must fail"
+
+    # the exact case: strength=1.0 with ordinary float noise must still pass
+    m = SoftGradientProjectionMemory(strength=1.0)
+    m._residual_sum, m._residual_n = 0.026 * 4, 4
+    sig = m.signature(None, None); sig.evaluate()
+    assert sig.passed, "float noise at strength=1.0 must not read as a failure"

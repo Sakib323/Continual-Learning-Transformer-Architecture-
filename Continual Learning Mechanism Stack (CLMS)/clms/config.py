@@ -179,6 +179,7 @@ PRESETS: dict[str, dict[str, Any]] = {
     "memory_layer": {"memory_layer": {"enabled": True}},
     "gpm_growth": {"gpm": {"enabled": True, "eps_base": 0.8}},
     "gpm_aging": {"gpm_aging": {"enabled": True, "eps_base": 0.8}},
+    "gpm_soft": {"gpm_soft": {"enabled": True, "eps_base": 0.8}},
     "sparse_update": {"sparse_update": {"enabled": True}},
     "memory_sparse": {
         "memory_layer": {"enabled": True},
@@ -244,6 +245,10 @@ TUNING_GRIDS: dict[str, dict[str, list[Any]]] = {
     # default so a difference is attributable to one thing. 0.75 reproduces the
     # baseline cap, making unmodified GPM a row in the same sweep.
     "gpm_aging":      {"mech.gpm_aging.target_occupancy": [0.25, 0.40, 0.55, 0.75]},
+    # Stage 3. strength=1.0 IS baseline GPM (exact projection), so the control
+    # for the comparison is a row in the same sweep rather than a cross-sweep
+    # number measured against different controls on different hardware.
+    "gpm_soft":       {"mech.gpm_soft.strength": [0.5, 0.7, 0.85, 1.0]},
 }
 
 
