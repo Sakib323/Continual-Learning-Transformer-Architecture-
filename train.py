@@ -69,11 +69,25 @@ def pick_device(requested: str) -> str:
         return "mps"
     if os.environ.get("CLMS_ALLOW_CPU") == "1":
         return "cpu"
+    # Two very different causes land here and the fix differs, so name both
+    # rather than blaming the GPU: a mid-sweep fault leaves earlier runs valid,
+    # a driver mismatch means the GPU was never usable and nothing ran.
+    import torch as _t
+    built = getattr(_t.version, "cuda", None)
     raise SystemExit(
         "no GPU available and CLMS_ALLOW_CPU is not set.\n"
-        "  If a sweep was running, the GPU probably faulted — check dmesg or\n"
-        "  nvidia-smi. Continuing on CPU would produce results that are not\n"
-        "  comparable with the GPU runs already in this directory."
+        f"  torch {_t.__version__} was built against CUDA {built}.\n"
+        "\n"
+        "  If torch reported 'driver is too old': the instance's driver predates\n"
+        "  this torch build and the GPU was never usable — nothing has run yet.\n"
+        "  Rent a host whose 'Max CUDA' is at least the version above, or\n"
+        "  install a matching build, e.g. for CUDA 12.8:\n"
+        "      pip install --force-reinstall --index-url \\\n"
+        "          https://download.pytorch.org/whl/cu128 torch\n"
+        "\n"
+        "  If the sweep had been running successfully: the GPU faulted mid-run.\n"
+        "  Check nvidia-smi and dmesg. Runs already written are still valid;\n"
+        "  continuing on CPU would not be comparable with them."
     )
 
 
