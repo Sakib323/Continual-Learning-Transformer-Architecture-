@@ -208,3 +208,51 @@ it would still be a seventh of what a replay buffer achieves.
 Worth holding both facts at once: the gap is the reason this is research rather
 than engineering, and it is also the reason not to over-invest before Stage 2
 reports.
+
+
+---
+
+# PHASE OUTCOME — three stages, and what they establish
+
+| stage | hypothesis | result |
+|---|---|---|
+| 1 · `eps_growth` | the rising threshold accelerates saturation | **null.** +0.066 at 5 seeds reversed to -0.005 at 10. Memory -46% is real |
+| 2 · aging basis | monotonic growth is the binding constraint | **null.** Saturation 0.584 -> 0.250 bought rho +0.024 +/- 0.117, below the 0.05 bar |
+| 3 · soft projection | the binary freeze is the binding constraint | **refuted, strongly.** rho 0.287 -> 0.108 as strength falls. t ~ 5.6 |
+
+Stage 3 is the one that carries information. Every softening of the projector
+made things monotonically worse, which means **the exactness guarantee is
+load-bearing**: `dW.M = 0` is not incidental to GPM, it is the mechanism. Any
+variant that relaxes it loses more than it gains. That is a positive finding
+about why GPM works, obtained by breaking it.
+
+## Four explanations ruled out by diagnostics
+
+1. **Insufficient coverage** — GPM projects **99.7%** of parameters. Only the
+   embeddings and norm scales (0.3%) are unprotected.
+2. **Stale basis** — the stored subspace keeps capturing 80-92% of an old task's
+   activation energy as training proceeds, and the fraction *rises* rather than
+   decaying. The guarantee stays relevant.
+3. **Plasticity cost** — `LA` is 100% at every strength and 96-101% at every
+   occupancy. GPM has never blocked learning; that was never the problem.
+4. **Rank-threshold noise** — real, documented, and not the dominant variance
+   source: the sequential control has CV 30.7% with no mechanism at all.
+
+## What remains
+
+GPM holds an exact guarantee over 99.7% of the model, on a basis that stays
+relevant, at no cost to plasticity — and still only cuts forgetting from the
+control's 0.75 to 0.60. The residual is the ~15% of activation energy outside
+the retained subspace, and on exact-match tasks that is enough to break an
+answer.
+
+Raising `eps` to capture more of it is the obvious move and was already
+measured: eps 0.97 scored rho **-0.047**, worse than doing nothing. Capture more
+and saturation destroys the score; capture less and protection is too thin. GPM
+sits between two failure modes with no room between them.
+
+**Recommendation: stop improving GPM.** Three pre-registered stages and four
+ruled-out explanations put its ceiling near rho 0.29 at five tasks and 0.09 at
+twelve. Closing the remaining gap to replay's 1.004 needs a different mechanism,
+not a better GPM — and this phase is the evidence for that claim rather than an
+assumption behind it.
