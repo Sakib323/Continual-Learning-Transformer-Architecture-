@@ -1,0 +1,18 @@
+
+==============================================================================
+F · protected-subspace accuracy after training `copy` (does the 'unprotected' energy carry the answer?)
+==============================================================================
+
+  --- current (eval batches, PAD rows kept)
+    eps=0.80  occupancy= 3.0%  k(q_proj L0)= 16/256   acc(copy)=1.00  acc with inputs restricted to span(M)=0.00   top-1 energy share: uncentered 0.11, centered 0.09
+    eps=0.90  occupancy= 5.6%  k(q_proj L0)= 20/256   acc(copy)=1.00  acc with inputs restricted to span(M)=0.00   top-1 energy share: uncentered 0.11, centered 0.09
+    eps=0.97  occupancy= 9.4%  k(q_proj L0)= 23/256   acc(copy)=1.00  acc with inputs restricted to span(M)=0.00   top-1 energy share: uncentered 0.11, centered 0.09
+    eps=0.99  occupancy=12.5%  k(q_proj L0)= 24/256   acc(copy)=1.00  acc with inputs restricted to span(M)=1.00   top-1 energy share: uncentered 0.11, centered 0.09
+
+  --- fixed collection (train batches, PAD rows dropped)
+    eps=0.80  occupancy= 3.4%  k(q_proj L0)= 16/256   acc(copy)=1.00  acc with inputs restricted to span(M)=0.00   top-1 energy share: uncentered 0.10, centered 0.09
+    eps=0.90  occupancy= 5.7%  k(q_proj L0)= 19/256   acc(copy)=1.00  acc with inputs restricted to span(M)=0.00   top-1 energy share: uncentered 0.10, centered 0.09
+    eps=0.97  occupancy= 9.3%  k(q_proj L0)= 22/256   acc(copy)=1.00  acc with inputs restricted to span(M)=0.00   top-1 energy share: uncentered 0.10, centered 0.09
+    eps=0.99  occupancy=11.9%  k(q_proj L0)= 23/256   acc(copy)=1.00  acc with inputs restricted to span(M)=1.00   top-1 energy share: uncentered 0.10, centered 0.09
+
+[exited with code 0]

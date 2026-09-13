@@ -1,0 +1,117 @@
+
+==============================================================================
+A · eval-set leakage: fisher/basis batches vs eval batches
+==============================================================================
+first 2 fisher batches identical to the eval batches: True
+=> GPM (collect_batches=4) and EWC build their protection from the exact inputs they are scored on.
+
+==============================================================================
+B · PAD dilution of the collected activation rows
+==============================================================================
+stream.max_len = 29
+  copy        seq_len= 29  PAD rows=34.5%   answer rows=31.0%
+  modadd7     seq_len= 29  PAD rows=79.3%   answer rows= 6.9%
+  reverse     seq_len= 29  PAD rows=34.5%   answer rows=31.0%
+  sort        seq_len= 29  PAD rows=34.5%   answer rows=31.0%
+  modadd13    seq_len= 29  PAD rows=79.3%   answer rows= 6.9%
+  induction6  seq_len= 29  PAD rows=65.5%   answer rows= 6.9%
+  copy12      seq_len= 29  PAD rows= 6.9%   answer rows=44.8%
+  sortdesc    seq_len= 29  PAD rows=34.5%   answer rows=31.0%
+  modadd23    seq_len= 29  PAD rows=79.3%   answer rows= 6.9%
+  reverse12   seq_len= 29  PAD rows= 6.9%   answer rows=44.8%
+  induction8  seq_len= 29  PAD rows=58.6%   answer rows= 6.9%
+  modadd31    seq_len= 29  PAD rows=79.3%   answer rows= 6.9%
+
+==============================================================================
+C · learning rate actually used per task (rewarm_per_task=False, global cosine)
+==============================================================================
+  12 tasks x 400 steps:
+    task  0: lr 6.00e-06 -> 2.96e-04   (  2% ->  99% of peak)
+    task  1: lr 2.96e-04 -> 2.82e-04   ( 99% ->  94% of peak)
+    task  2: lr 2.82e-04 -> 2.59e-04   ( 94% ->  86% of peak)
+    task  3: lr 2.59e-04 -> 2.28e-04   ( 86% ->  76% of peak)
+    task  4: lr 2.28e-04 -> 1.92e-04   ( 76% ->  64% of peak)
+    task  5: lr 1.92e-04 -> 1.53e-04   ( 64% ->  51% of peak)
+    task  6: lr 1.52e-04 -> 1.13e-04   ( 51% ->  38% of peak)
+    task  7: lr 1.13e-04 -> 7.65e-05   ( 38% ->  26% of peak)
+    task  8: lr 7.64e-05 -> 4.49e-05   ( 25% ->  15% of peak)
+    task  9: lr 4.48e-05 -> 2.06e-05   ( 15% ->   7% of peak)
+    task 10: lr 2.05e-05 -> 5.24e-06   (  7% ->   2% of peak)
+    task 11: lr 5.22e-06 -> 3.28e-11   (  2% ->   0% of peak)
+  5 tasks x 400 steps:
+    task  0: lr 6.00e-06 -> 2.77e-04   (  2% ->  92% of peak)
+    task  1: lr 2.77e-04 -> 2.03e-04   ( 92% ->  68% of peak)
+    task  2: lr 2.03e-04 -> 1.08e-04   ( 68% ->  36% of peak)
+    task  3: lr 1.08e-04 -> 3.02e-05   ( 36% ->  10% of peak)
+    task  4: lr 3.01e-05 -> 1.95e-10   ( 10% ->   0% of peak)
+
+==============================================================================
+D · does the WEIGHT STEP respect dW·M = 0, or only the gradient?  (tiny, 3 tasks, 300 steps)
+==============================================================================
+
+--- AdamW (as in train.py)                     
+    LA (diag) = [1.0, 1.0, 1.0]   final row = [0.0, 0.52, 1.0]   FM = 0.738
+    during modadd7   ||dW·M||/||dW|| per step: mean 0.0905  max 0.1475
+    during reverse   ||dW·M||/||dW|| per step: mean 0.1706  max 0.2884
+    during modadd7   rel. movement  embed/lm_head=0.6301  norm gains=0.0031  projected linears=0.1461
+    during reverse   rel. movement  embed/lm_head=0.5006  norm gains=0.0063  projected linears=0.1882
+    basis occupancy after stream: 0.247
+
+--- Adam, weight_decay=0                       
+    LA (diag) = [1.0, 1.0, 1.0]   final row = [0.0, 0.54, 1.0]   FM = 0.730
+    during modadd7   ||dW·M||/||dW|| per step: mean 0.0905  max 0.1475
+    during reverse   ||dW·M||/||dW|| per step: mean 0.1757  max 0.2865
+    during modadd7   rel. movement  embed/lm_head=0.6304  norm gains=0.0031  projected linears=0.1459
+    during reverse   rel. movement  embed/lm_head=0.5042  norm gains=0.0065  projected linears=0.1911
+    basis occupancy after stream: 0.268
+
+--- SGD+momentum lr=0.05                       
+    LA (diag) = [1.0, 1.0, 1.0]   final row = [0.0, 0.65, 1.0]   FM = 0.676
+    during modadd7   ||dW·M||/||dW|| per step: mean 0.0059  max 0.2127
+    during reverse   ||dW·M||/||dW|| per step: mean 0.0031  max 0.2429
+    during modadd7   rel. movement  embed/lm_head=0.3401  norm gains=0.0018  projected linears=0.0703
+    during reverse   rel. movement  embed/lm_head=0.6291  norm gains=0.0040  projected linears=0.1016
+    basis occupancy after stream: 0.265
+
+--- AdamW + step projected AFTER optimizer     
+    LA (diag) = [1.0, 1.0, 1.0]   final row = [0.0, 0.7, 1.0]   FM = 0.648
+    during modadd7   ||dW·M||/||dW|| per step: mean 0.0896  max 0.1475
+    during reverse   ||dW·M||/||dW|| per step: mean 0.1640  max 0.2835
+    during modadd7   rel. movement  embed/lm_head=0.6378  norm gains=0.0032  projected linears=0.1467
+    during reverse   rel. movement  embed/lm_head=0.4961  norm gains=0.0066  projected linears=0.1904
+    basis occupancy after stream: 0.256
+
+--- AdamW + freeze embed & norms               
+    LA (diag) = [1.0, 1.0, 1.0]   final row = [0.0, 0.97, 1.0]   FM = 0.516
+    during modadd7   ||dW·M||/||dW|| per step: mean 0.0925  max 0.1870
+    during reverse   ||dW·M||/||dW|| per step: mean 0.1575  max 0.2247
+    during modadd7   rel. movement  embed/lm_head=0.0000  norm gains=0.0000  projected linears=0.1848
+    during reverse   rel. movement  embed/lm_head=0.0000  norm gains=0.0000  projected linears=0.2377
+    basis occupancy after stream: 0.137
+
+--- AdamW + post-projection + freeze embed/norm
+    LA (diag) = [1.0, 1.0, 1.0]   final row = [0.0, 0.97, 1.0]   FM = 0.516
+    during modadd7   ||dW·M||/||dW|| per step: mean 0.0908  max 0.1870
+    during reverse   ||dW·M||/||dW|| per step: mean 0.1141  max 0.1881
+    during modadd7   rel. movement  embed/lm_head=0.0000  norm gains=0.0000  projected linears=0.1824
+    during reverse   rel. movement  embed/lm_head=0.0000  norm gains=0.0000  projected linears=0.2325
+    basis occupancy after stream: 0.161
+
+[section D took 506s]
+
+==============================================================================
+E · rank selection: current rule (threshold on residual) vs GPM paper rule (threshold on total)
+==============================================================================
+  after copy        new dirs: current rule   670 ( 5.0% of widths)   paper rule   670 ( 5.0%)   cumulative  5.0% vs  5.0%
+  after modadd7     new dirs: current rule  1619 (12.0% of widths)   paper rule   575 ( 4.3%)   cumulative 17.0% vs  9.3%
+  after reverse     new dirs: current rule  1116 ( 8.3% of widths)   paper rule   352 ( 2.6%)   cumulative 25.3% vs 11.9%
+  after sort        new dirs: current rule  1720 (12.8% of widths)   paper rule   485 ( 3.6%)   cumulative 38.1% vs 15.5%
+  after modadd13    new dirs: current rule  2490 (18.5% of widths)   paper rule   362 ( 2.7%)   cumulative 56.7% vs 18.2%
+  after induction6  new dirs: current rule  1975 (14.7% of widths)   paper rule   228 ( 1.7%)   cumulative 71.4% vs 19.9%
+
+[section E took 108s]
+
+Note: the basis actually used above follows the CURRENT rule; the paper-rule column is what
+the same activations would have consumed under the reference criterion.
+
+[exited with code 0]

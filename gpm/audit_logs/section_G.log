@@ -1,0 +1,21 @@
+
+==============================================================================
+G · current GPM vs corrected GPM, tiny, first 6 tasks of the long stream, 300 steps/task, per-task LR
+==============================================================================
+    control (no mechanism)   seed0: AA=0.095 LA=0.818 FM=0.867 occupancy=0.000  final row=[0.0, 0.21, 0.0, 0.0, 0.05, 0.3]  (377s)
+    control (no mechanism)   seed1: AA=0.104 LA=0.884 FM=0.936 occupancy=0.000  final row=[0.0, 0.16, 0.0, 0.0, 0.14, 0.32]  (251s)
+  >> control (no mechanism)   mean over 2 seeds: AA=0.100  LA=0.851  FM=0.902  occupancy=0.000
+    gpm current eps=0.8      seed0: AA=0.250 LA=0.882 FM=0.758 occupancy=0.413  final row=[0.0, 0.36, 0.0, 0.0, 0.85, 0.29]  (183s)
+    gpm current eps=0.8      seed1: AA=0.243 LA=0.889 FM=0.775 occupancy=0.327  final row=[0.0, 0.3, 0.0, 0.0, 0.83, 0.34]  (179s)
+  >> gpm current eps=0.8      mean over 2 seeds: AA=0.247  LA=0.885  FM=0.766  occupancy=0.370
+    gpm current eps=0.9      seed0: AA=0.279 LA=0.874 FM=0.714 occupancy=0.618  final row=[0.0, 0.45, 0.0, 0.0, 0.98, 0.24]  (163s)
+    gpm current eps=0.9      seed1: AA=0.238 LA=0.880 FM=0.770 occupancy=0.605  final row=[0.0, 0.2, 0.0, 0.0, 0.95, 0.28]  (158s)
+  >> gpm current eps=0.9      mean over 2 seeds: AA=0.258  LA=0.877  FM=0.742  occupancy=0.612
+    gpm FIXED   eps=0.9      seed0: AA=0.236 LA=0.871 FM=0.762 occupancy=0.216  final row=[0.0, 0.6, 0.01, 0.12, 0.46, 0.23]  (166s)
+    gpm FIXED   eps=0.9      seed1: AA=0.292 LA=0.879 FM=0.705 occupancy=0.198  final row=[0.05, 0.7, 0.0, 0.0, 0.72, 0.29]  (176s)
+  >> gpm FIXED   eps=0.9      mean over 2 seeds: AA=0.264  LA=0.875  FM=0.734  occupancy=0.207
+    gpm FIXED   eps=0.97     seed0: AA=0.447 LA=0.879 FM=0.519 occupancy=0.375  final row=[0.01, 0.98, 0.37, 0.12, 0.93, 0.27]  (164s)
+    gpm FIXED   eps=0.97     seed1: AA=0.638 LA=0.879 FM=0.289 occupancy=0.397  final row=[0.98, 1.0, 0.34, 0.21, 1.0, 0.3]  (165s)
+  >> gpm FIXED   eps=0.97     mean over 2 seeds: AA=0.542  LA=0.879  FM=0.404  occupancy=0.386
+
+[exited with code 0]
