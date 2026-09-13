@@ -31,10 +31,10 @@ SEEDS="${SEEDS:-0,1,2}"
 GPM_SEEDS="${GPM_SEEDS:-0,1,2,3,4}"
 COMMON="--set stream.scenario=class_il --set stream.tasks=$TASKS --set stream.eval_batches=2"
 
-seeds_for() { [ "$1" = "gpm" ] && echo "$GPM_SEEDS" || echo "$SEEDS"; }
+seeds_for() { case "$1" in gpm|gpm_v2) echo "$GPM_SEEDS" ;; *) echo "$SEEDS" ;; esac; }
 
 # Track A — retention under interference, at full capacity.
-A_PRESETS=(ewc si gpm lwf lora olora l2p memory_layer memory_sparse sparse_update kwta cbp shrink_perturb)
+A_PRESETS=(ewc si gpm gpm_v2 lwf lora olora l2p memory_layer memory_sparse sparse_update kwta cbp shrink_perturb)
 # Track B — plasticity, at a capacity small enough that the network saturates.
 # The five-task stream showed no plasticity decay at all, so the plasticity
 # family was being scored on a benchmark where their problem never occurs; a

@@ -60,7 +60,14 @@ BASE_CONFIG: dict[str, Any] = {
         "betas": [0.9, 0.95],
         "grad_clip": 1.0,
         "warmup_steps": 50,
-        "rewarm_per_task": False,     # F15: deliberate re-warming at each boundary
+        # Per-task schedule and per-task optimizer state. Both default True
+        # since the 2026-09-13 audit: with one cosine over the whole stream the
+        # last task of twelve trained at 2% -> 0% of peak LR, so late-task
+        # plasticity and forgetting were schedule artefacts (gpm/AUDIT.md, D6).
+        # Every sweep before that date (runs_A/B, runs_s1-s3) ran with
+        # rewarm_per_task=False and no reset; set both False to reproduce them.
+        "rewarm_per_task": True,
+        "reset_per_task": True,
     },
     "probes": {
         "enabled": True,
@@ -180,6 +187,8 @@ PRESETS: dict[str, dict[str, Any]] = {
     "gpm_growth": {"gpm": {"enabled": True, "eps_base": 0.8}},
     "gpm_aging": {"gpm_aging": {"enabled": True, "eps_base": 0.8}},
     "gpm_soft": {"gpm_soft": {"enabled": True, "eps_base": 0.8}},
+    # GPM after the audit: paper rank rule, step projection, readout protected.
+    "gpm_v2": {"gpm_v2": {"enabled": True}},
     "sparse_update": {"sparse_update": {"enabled": True}},
     "memory_sparse": {
         "memory_layer": {"enabled": True},
@@ -249,6 +258,10 @@ TUNING_GRIDS: dict[str, dict[str, list[Any]]] = {
     # for the comparison is a row in the same sweep rather than a cross-sweep
     # number measured against different controls on different hardware.
     "gpm_soft":       {"mech.gpm_soft.strength": [0.5, 0.7, 0.85, 1.0]},
+    # gpm_v2 is swept in the paper's range (Appendix C.5: 0.95-1.0). The old
+    # grid stopped at 0.97 because the residual-threshold rank rule saturated
+    # there; with Eq. 9 in place 0.99 is the value to test, not to avoid.
+    "gpm_v2":         {"mech.gpm_v2.eps_base": [0.95, 0.97, 0.99]},
 }
 
 

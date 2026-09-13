@@ -3,17 +3,23 @@
 **Verdict.** The "stop improving GPM" conclusion in `GPM_PROGRESS_REPORT.md`
 is premature. The mechanism as implemented does not deliver the guarantee the
 documents describe, and the harness measures it in a way that both flatters
-and confounds it. Six concrete defects were found, five of them reproduced by
-running the code locally on CPU. Three of the four "ruled-out explanations" in
+and confounds it. Seven concrete defects were found, six of them reproduced by
+running the code locally on CPU (the seventh surfaced while validating the
+fix). Three of the four "ruled-out explanations" in
 Part 8 of the progress report were ruled out with instruments that inherit the
 same defects.
 
 Everything below was produced by `scripts/gpm_diagnostics.py` (sections A–G).
 Re-run it to reproduce any number in this file.
 
+**Status (same day):** the fixes are implemented. `gpm_v2` in
+`clms/mechanisms/projection.py` addresses D1, D2, D4, D5, D7 and the §3 items;
+`train.py` and `config.py` address D3 and D6. Tests cover each defect. See
+`SUCCESS_METRICS.md` for what the next sweep has to show.
+
 ---
 
-## 1 · The six defects
+## 1 · The seven defects
 
 ### D1 · The weight step is not orthogonal to the basis (AdamW)
 
@@ -162,6 +168,32 @@ schedule while `sequential` does not, so the two ceilings are not comparable.
 Continual-learning benchmarks (the GPM paper included) reset the schedule per
 task.
 
+### D7 · The Gram-matrix SVD returns wrong vectors once a basis is more than half full
+
+Found while validating `gpm_v2`, and present in `gpm` too. Both build the
+basis from `torch.linalg.svd(RᵀR)`. When the existing basis holds more than
+about half a layer, the residual's Gram matrix has a null space of several
+hundred dimensions, and on this platform (torch 2.13, macOS) the SVD returned
+NaN singular values near the rank edge and leading vectors that overlapped the
+existing basis by up to **0.35**. The basis then stops being orthonormal,
+`I − MMᵀ` stops being a projector, and every guarantee downstream is void.
+On the exact failing matrix:
+
+| decomposition | overlap of top-8 new vectors with existing basis |
+|---|---|
+| `svd(RᵀR)` (as shipped) | **0.35**, with NaNs in the spectrum |
+| `eigh(RᵀR)` | 3.8e-8 |
+| `svd(R)` on the residual directly | 3.8e-8 |
+
+In `gpm` a NaN spectrum makes `csum` NaN, every comparison false, and
+`k = 1`, so it silently appends one arbitrary vector per boundary. Whether
+the Linux LAPACK on the rented instances misbehaves the same way is not
+verified; the fix does not depend on it. `gpm_v2` now decomposes the
+residual itself, caps `k` at the numerical rank, re-orthogonalises the new
+columns against the stored basis, and checks `||MᵀM − I||` after every
+extension. A test fills a basis past 90 % in forty steps and asserts the
+invariant throughout; probe C5 is what caught it in the first place.
+
 ---
 
 ## 2 · What the "four ruled-out explanations" actually established
@@ -282,6 +314,40 @@ before spending on attribution); whether it holds at `small` on all twelve
 tasks; whether eps 0.99 is affordable on twelve tasks even under the paper's
 rule. Those are the next sweep's questions, in that order.
 
+### 5b · `gpm_v2` on the real 12-task Class-IL benchmark (tiny, one seed)
+
+After the implementation, through `train.py` with the harness fixes on
+(boundary batches, per-task LR, optimizer reset), tiny model, 300 steps per
+task, seed 0. Raw output in `audit_logs/tiny12_class_il.log`; per-run
+`result.json` in `audit_logs/runs_tiny12/`.
+
+| config | AA | LA % | FM | occupancy | C2 | C5 | MB | rho |
+|---|---|---|---|---|---|---|---|---|
+| control_sequential | 0.113 | 100 % | 0.805 | — | | | | 0 |
+| control_joint | 0.856 | | | | | | | 1 |
+| gpm as shipped, eps 0.8 | 0.079 | 98 % | 0.821 | 0.63 | pass | — | 12.6 | **−0.046** |
+| gpm_v2, eps 0.97 | 0.340 | 103 % | 0.587 | 0.57 | pass | 3.8e-5 pass | 9.8 | **0.305** |
+| gpm_v2, eps 0.99 | 0.458 | 90 % | 0.332 | 0.76 | pass | 4.3e-5 pass | 13.5 | **0.465** |
+
+AA after each task for the two `gpm_v2` runs, to show *where* the gain is:
+
+```
+eps 0.97: 1.00 .75 .85 .86 .82 .55 .26 .35 .39 .38 .28 .34
+eps 0.99: 1.00 .96 .97 .98 .93 .82 .53 .59 .56 .46 .44 .46
+control:  1.00 .50 .33 .25 .21 .08 .10 .13 .11 .16 .06 .11
+```
+
+At eps 0.99 the first six tasks are held at 0.82–0.98 while they are learned;
+the drop comes at `copy12`, the first 12-symbol task, which is where the
+basis crosses 0.6 occupancy. That is GPM's genuine capacity limit showing
+up, at the place the paper says it should, rather than the implementation's.
+
+The same run *before* the D7 fix scored 0.329 at eps 0.99 with C5 failing at
+0.93 — so the orthonormality repair alone is worth +0.14 rho, and the probe
+that flagged it is doing its job.
+
+One seed, 4.5M parameters. Not a result; the reason to run the sweep.
+
 ---
 
 ## 6 · What to do next, in order
@@ -290,7 +356,8 @@ The next thing is **not** another mechanism variant and not Phase 5. It is to
 make the existing GPM deliver its stated guarantee, then re-measure. Each step
 below is small, testable, and stays inside the one-change-at-a-time rule.
 
-1. **Fix the harness first**, because it affects every mechanism's number:
+1. **Fix the harness first**, because it affects every mechanism's number
+   — **done**:
    - `train.py`: draw `fisher_batches` from a separate training-distribution
      generator, never from `eval_batches` (D3).
    - `train.py`: default `optim.rewarm_per_task: true` for sequential mode
@@ -299,7 +366,7 @@ below is small, testable, and stays inside the one-change-at-a-time rule.
      option and measure it).
    - Add a test that `fisher_batches` and `eval_batches` are disjoint.
 2. **Fix GPM to the paper's algorithm**, as a new registered mechanism
-   (`gpm_v2`) so `gpm` stays as the published baseline:
+   (`gpm_v2`) so `gpm` stays as the published baseline — **done, see §5b**:
    - paper rank rule, `k ≥ 0` (D2);
    - mask PAD positions when collecting (D4);
    - project the *step* after `optimizer.step()` so `ΔW·M = 0` under AdamW

@@ -1,0 +1,178 @@
+run:
+  name: gpm_v2[eps_base=0.97]
+  seed: 0
+  device: auto
+  out_dir: /private/tmp/claude-501/-Users-macbook-Documents-All-files-from-Surface-Desktop-Folder-AI-Game-Engine/4438a376-3ab2-470c-a523-3b040ea32a8e/scratchpad/runs_tiny12
+  resume: true
+  keep_checkpoint: false
+  skip_completed: true
+model:
+  size_preset: tiny
+  vocab_size: 128
+  max_position_embeddings: 128
+  tie_word_embeddings: true
+stream:
+  tasks:
+  - copy
+  - modadd7
+  - reverse
+  - sort
+  - modadd13
+  - induction6
+  - copy12
+  - sortdesc
+  - modadd23
+  - reverse12
+  - induction8
+  - modadd31
+  batch_size: 32
+  steps_per_task: 300
+  steps_schedule: null
+  eval_batches: 2
+  scenario: class_il
+optim:
+  lr: 0.0003
+  weight_decay: 0.01
+  betas:
+  - 0.9
+  - 0.95
+  grad_clip: 1.0
+  warmup_steps: 50
+  rewarm_per_task: true
+  reset_per_task: true
+probes:
+  enabled: true
+  every_n_steps: 200
+  capture_layers: all
+mechanisms:
+  continual_backprop:
+    enabled: false
+    rho: 0.0001
+    maturity: 100
+    decay: 0.99
+    init_std: 0.02
+  der:
+    enabled: false
+    capacity: 2000
+    alpha: 0.5
+    beta: 0.5
+    batch_size: 16
+  ewc:
+    enabled: false
+    lam: 1000.0
+    online: true
+    gamma: 0.95
+    fisher_batches: 8
+    fisher_type: model
+    normalize: true
+  gpm:
+    enabled: false
+    eps_base: 0.9
+    eps_growth: 0.005
+    max_bases_frac: 0.75
+    collect_batches: 4
+    min_features: 8
+    saturation_warn_frac: 0.85
+    eps_floor: 0.5
+  gpm_aging:
+    enabled: false
+    eps_base: 0.9
+    eps_growth: 0.005
+    max_bases_frac: 0.75
+    collect_batches: 4
+    min_features: 8
+    saturation_warn_frac: 0.85
+    eps_floor: 0.5
+    target_occupancy: 0.4
+    usage_decay: 0.7
+  gpm_soft:
+    enabled: false
+    eps_base: 0.9
+    eps_growth: 0.005
+    max_bases_frac: 0.75
+    collect_batches: 4
+    min_features: 8
+    saturation_warn_frac: 0.85
+    eps_floor: 0.5
+    strength: 0.85
+  gpm_v2:
+    enabled: true
+    eps_base: 0.97
+    eps_growth: 0.0
+    max_bases_frac: 1.0
+    collect_batches: 4
+    min_features: 8
+    saturation_warn_frac: 0.85
+    eps_floor: 0.5
+    pad_id: 0
+    project_step: true
+    protect_readout: true
+    freeze_norms: true
+    share_bases: true
+    leak_probe_every: 25
+  kwta:
+    enabled: false
+    k_fraction: 0.15
+    boost_strength: 1.0
+    boost_decay: 0.99
+    inference_boost: 1.5
+  l2p:
+    enabled: false
+    pool_size: 20
+    top_n: 4
+    prompt_len: 4
+    lam: 0.5
+    freeze_after_task: 0
+    diversify: true
+  lora:
+    enabled: false
+    rank: 8
+    alpha: 16.0
+    freeze_after_task: 0
+    targets: q_proj,v_proj,down_proj
+  lwf:
+    enabled: false
+    lam: 1.0
+    temperature: 2.0
+  memory_layer:
+    enabled: false
+    auto_scale: true
+    num_slots: 16384
+    topk: 16
+    key_dim: 128
+    value_dim: 256
+    num_heads: 2
+    layer: -1
+  olora:
+    enabled: false
+    rank: 8
+    alpha: 16.0
+    lam: 0.5
+    targets: q_proj,v_proj,down_proj
+  replay:
+    enabled: false
+    capacity: 2000
+    ratio: 0.25
+    store_every: 1
+  shrink_perturb:
+    enabled: false
+    shrink: 0.999
+    noise_std: 0.001
+    every: 100
+  si:
+    enabled: false
+    c: 0.1
+    xi: 0.1
+  sparse_update:
+    enabled: false
+    auto_scale: true
+    slot_frac: 0.03
+    t: 500
+    neuron_frac: 0.1
+    ranking: tfidf
+    background_batches: 32
+    warmup_steps: 50
+  xdg:
+    enabled: false
+    gate_fraction: 0.5
+    seed: 1234

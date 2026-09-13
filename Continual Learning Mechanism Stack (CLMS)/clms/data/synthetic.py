@@ -321,6 +321,19 @@ class TaskStream:
         for _ in range(n_batches):
             yield make_batch(task, self.batch_size, g, self.max_len, self.include_task_token)
 
+    def boundary_batches(self, task: Task, n_batches: int = 8, seed_offset: int = 20_000):
+        """Training-distribution batches for task-boundary work (Fisher, GPM bases).
+
+        Own generator, so it neither advances the training stream nor overlaps
+        the frozen eval set. Before this existed the trainer handed mechanisms
+        `eval_batches(task, 8)`, whose first two batches are byte-identical to
+        the batches the model is scored on — so GPM built its protective basis
+        and EWC its Fisher from the evaluation data itself (gpm/AUDIT.md, D3).
+        """
+        g = torch.Generator().manual_seed(self.seed + seed_offset + task.task_id)
+        for _ in range(n_batches):
+            yield make_batch(task, self.batch_size, g, self.max_len, self.include_task_token)
+
     @property
     def num_tasks(self) -> int:
         return len(self.tasks)

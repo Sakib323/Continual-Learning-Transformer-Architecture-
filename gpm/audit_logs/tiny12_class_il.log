@@ -1,0 +1,95 @@
+##### control_sequential
+    [clms] device=mps  mode=sequential  params=4,462,080
+      -> after copy: AA=1.0000
+      -> after modadd7: AA=0.5000
+      -> after reverse: AA=0.3333
+      -> after sort: AA=0.2500
+      -> after modadd13: AA=0.2062
+      -> after induction6: AA=0.0781
+      -> after copy12: AA=0.0960
+      -> after sortdesc: AA=0.1328
+      -> after modadd23: AA=0.1128
+      -> after reverse12: AA=0.1578
+      -> after induction8: AA=0.0582
+      -> after modadd31: AA=0.1133
+    [clms] AA=0.1133  FM=0.8054  BWT=-0.8054
+    [399s, exit 0]
+##### control_joint
+    [clms] device=mps  mode=joint  params=4,462,080
+    [clms] AA=0.8555  FM=0.0000  BWT=+0.0000
+    [404s, exit 0]
+##### gpm[eps_base=0.8]
+    [clms] device=mps  mode=sequential  params=4,462,080
+      -> after copy: AA=1.0000
+      -> after modadd7: AA=0.5234
+      -> after reverse: AA=0.5573
+      -> after sort: AA=0.4023
+      -> after modadd13: AA=0.3656
+      -> after induction6: AA=0.1615
+      -> after copy12: AA=0.1429
+      -> after sortdesc: AA=0.1875
+      -> after modadd23: AA=0.0729
+      -> after reverse12: AA=0.1094
+      -> after induction8: AA=0.0270
+      -> after modadd31: AA=0.0794
+    [clms] AA=0.0794  FM=0.8210  BWT=-0.8210
+    [clms] signature C2 PASS  fraction of gradient directions consumed=0.6257
+    [505s, exit 0]
+##### gpm_v2[eps_base=0.97]
+    [clms] device=mps  mode=sequential  params=4,462,080
+      -> after copy: AA=1.0000
+      -> after modadd7: AA=0.7500
+      -> after reverse: AA=0.8490
+      -> after sort: AA=0.8633
+      -> after modadd13: AA=0.8187
+      -> after induction6: AA=0.5469
+      -> after copy12: AA=0.2567
+      -> after sortdesc: AA=0.3477
+      -> after modadd23: AA=0.3941
+      -> after reverse12: AA=0.3781
+      -> after induction8: AA=0.2841
+      -> after modadd31: AA=0.3398
+    [clms] AA=0.3398  FM=0.5866  BWT=-0.5866
+    [clms] signature C2 PASS  fraction of gradient directions consumed=0.5714
+    [clms] signature C5 PASS  fraction of the weight step inside the protected subspace=3.784e-05
+    [500s, exit 0]
+##### gpm_v2[eps_base=0.99]
+    [clms] device=mps  mode=sequential  params=4,462,080
+      -> after copy: AA=1.0000
+      -> after modadd7: AA=0.9609
+      -> after reverse: AA=0.9740
+      -> after sort: AA=0.9805
+      -> after modadd13: AA=0.9344
+      -> after induction6: AA=0.8177
+      -> after copy12: AA=0.5268
+      -> after sortdesc: AA=0.5918
+      -> after modadd23: AA=0.5590
+      -> after reverse12: AA=0.4594
+      -> after induction8: AA=0.4389
+      -> after modadd31: AA=0.4583
+    [clms] AA=0.4583  FM=0.3324  BWT=-0.3324
+    [clms] signature C2 PASS  fraction of gradient directions consumed=0.7639
+    [clms] signature C5 PASS  fraction of the weight step inside the protected subspace=4.338e-05
+    [502s, exit 0]
+##### REPORT
+
+====================================================================================================
+  MECHANISM REPORT — /private/tmp/claude-501/-Users-macbook-Documents-All-files-from-Surface-Desktop-Folder-AI-Game-Engine/4438a376-3ab2-470c-a523-3b040ea32a8e/scratchpad/runs_tiny12
+  floor 0.1133   ceiling 0.8555   span +0.7422
+====================================================================================================
+
+mechanism                     rho    ±sd  n   LA%     FM     FWT    sig       MB   rho/MB   verdict
+----------------------------------------------------------------------------------------------------
+gpm_v2[eps_base=0.99]       0.465  0.000  1   90%  0.332  -0.042    2/2     13.5    0.034   partial (plasticity 90%)
+gpm_v2[eps_base=0.97]       0.305  0.000  1  103%  0.587  -0.042    2/2      9.8    0.031   partial
+gpm[eps_base=0.8]          -0.046  0.000  1   98%  0.821  -0.054    1/1     12.6        -   harmful
+
+Uneven grid sizes [1, 2]: gpm=1, gpm_v2=2
+  -> the table shows each mechanism's BEST point, so a larger grid
+     is a selection advantage, not a better mechanism.
+
+Forward transfer across all mechanisms: min -0.054  max -0.042  mean -0.046
+  -> no mechanism learns new tasks faster for having seen earlier ones.
+
+
+[exited with code 0]

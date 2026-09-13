@@ -1,5 +1,10 @@
 # GPM — how it works, and where it breaks
 
+> **2026-09-13.** This file describes `gpm` as it was measured in the
+> ablation. An audit (`AUDIT.md`) found six defects in that implementation
+> and its harness; `gpm_v2` fixes them and `SUCCESS_METRICS.md` states what
+> the re-run has to show. Sections 4–6 below are superseded by the audit.
+
 Gradient Projection Memory was selected after measuring all fifteen mechanisms.
 It is the only one that **reduces forgetting without sacrificing plasticity**:
 FM 0.634 against the control's 0.758, at 91% of the control's learning ability.

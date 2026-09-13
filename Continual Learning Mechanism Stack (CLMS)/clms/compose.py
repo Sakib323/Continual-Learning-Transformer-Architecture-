@@ -192,8 +192,11 @@ class Composer:
         out: list[SignatureCheck] = []
         for m in self.mechanisms:
             sig = m.signature(model, self.ctx)
-            if sig is not None:
-                out.append(sig)
+            if sig is None:
+                continue
+            # a mechanism with two independent claims (gpm_v2: occupancy and
+            # step leak) reports both rather than hiding one in the notes
+            out.extend(sig if isinstance(sig, (list, tuple)) else [sig])
         return out
 
     def costs(self) -> dict[str, dict[str, Any]]:

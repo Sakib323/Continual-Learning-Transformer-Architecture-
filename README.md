@@ -131,6 +131,7 @@ and hook ordering are all checked at config-parse time.
 | `ewc` | L | F02 | 1904.07734 |
 | `si` | L·O | F02 | 1904.07734 |
 | `gpm` | O | F03 | 2103.09762 |
+| `gpm_v2` | O | F03 | 2103.09762 (post-audit: paper rank rule, step projection, readout protected — see `gpm/AUDIT.md`) |
 | `olora` | A·L | F03 | survey |
 | `xdg` | A | F04 | 1904.07734 |
 | `kwta` | A | F04 | 1903.11257 |

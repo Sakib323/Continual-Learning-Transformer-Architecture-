@@ -1,0 +1,11 @@
+device=cpu share=1 readout=1 eps=0.99
+  after copy     occupancy=0.182  worst ||MᵀM-I||max: q_proj[L2] 50x256 err=2.0e-08; down_proj[L0] 35x704 err=1.9e-08; o_proj[L3] 49x256 err=1.8e-08
+  task 1 modadd7  worst post-correction leak per layer: q_proj[L0] k=23 leak=0.000; k_proj[L0] k=23 leak=0.000; v_proj[L0] k=23 leak=0.000; lm_head[L-] k=63 leak=0.000
+  after modadd7  occupancy=0.213  worst ||MᵀM-I||max: down_proj[L0] 44x704 err=8.9e-08; o_proj[L4] 56x256 err=4.9e-08; down_proj[L4] 147x704 err=4.8e-08
+  task 2 reverse  worst post-correction leak per layer: lm_head[L-] k=72 leak=0.000; gate_proj[L3] k=68 leak=0.000; v_proj[L3] k=68 leak=0.000; gate_proj[L2] k=68 leak=0.000
+  after reverse  occupancy=0.420  worst ||MᵀM-I||max: down_proj[L2] 150x704 err=7.2e-06; o_proj[L2] 95x256 err=1.2e-07; o_proj[L4] 98x256 err=9.8e-08
+  task 3 sort     worst post-correction leak per layer: lm_head[L-] k=153 leak=0.000; k_proj[L5] k=150 leak=0.000; q_proj[L5] k=150 leak=0.000; v_proj[L5] k=150 leak=0.000
+  after sort     occupancy=0.519  worst ||MᵀM-I||max: down_proj[L3] 390x704 err=3.5e-01; o_proj[L4] 100x256 err=4.7e-04; gate_proj[L1] 115x256 err=1.9e-05
+  C2 passed=True value=0.5152
+  C5 passed=True value=2.526e-05
+  raw mean leak 0.2248 corrected mean 2.526e-05

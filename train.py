@@ -322,6 +322,13 @@ def train(cfg: dict) -> dict:
             if oc["rewarm_per_task"] and task_idx > 0:
                 for g in optimizer.param_groups:
                     g["lr"] = oc["lr"]
+            if oc.get("reset_per_task", True) and task_idx > 0:
+                # Fresh Adam moments per task, as continual-learning code
+                # normally re-creates the optimizer at a boundary. Carried-over
+                # momentum from task t lies inside the directions task t+1
+                # freezes, so the first ~20 steps of every task otherwise move
+                # inside the constraint (AUDIT §3).
+                optimizer.state.clear()
 
             model.train()
             for step, batch in enumerate(stream.batches(task)):
@@ -352,8 +359,9 @@ def train(cfg: dict) -> dict:
                     print(f"  [{task.name}] step {step} loss={float(out['loss'].detach()):.4f} {extra}")
                 global_step += 1
 
-            # boundary work: Fisher estimation, SVD bases, buffer resizing
-            ctx.scratch["fisher_batches"] = list(stream.eval_batches(task, 8))
+            # boundary work: Fisher estimation, SVD bases, buffer resizing.
+            # Training-distribution batches, never the eval set (AUDIT D3).
+            ctx.scratch["fisher_batches"] = list(stream.boundary_batches(task, 8))
             composer.on_task_end(model, task_idx)
 
             row = evaluate_all(model, stream, task_idx, device, matrix,
